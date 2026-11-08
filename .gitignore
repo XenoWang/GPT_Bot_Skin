@@ -1,5 +1,7 @@
 /.local/
 /AI_Skills/
+/.agents/skills/codex-skin-creator/
+/.agents/skills/codex-skin-usage/
 /Skin_Creator/AI_Skills/Reports/
 /Skin_Creator/runtime/tests/_deps/
 /Skin_Usage/AI_Skills/

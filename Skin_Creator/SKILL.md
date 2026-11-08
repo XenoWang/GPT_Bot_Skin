@@ -33,9 +33,12 @@ Show the measured numbered diagram and matching region table. Explain coverage g
 
 Only the prompt, background and complete-result acceptance gates are needed beyond the user's actual design choices. Displaying a crop does not introduce another mandatory confirmation. Changes invalidate dependent previews, not the entire conversation.
 
+Honor explicit foreground and border requests through custom `colors` input (`style` and optional `regionStyles` in the command reference). Preserve the selected surface colors when text is explicit; a contrast conflict must be reported, not hidden by darkening the requested surface. Semantic content keeps native colors; do not apply a universal descendant text override.
+
 ## Boundaries and recovery
 
 - `preview` reloads only the owned Skin layer and uses a temporary pack; `restore` restores the previous appearance without writing pack/preferences storage. An outdated runtime must be updated through the normal managed runtime path first. No forced app restart.
+- If the client cannot expose its window through CDP, inventory uses the bundled Windows placement helper for the same verified process. It restores the saved placement on exit. Multiple ambiguous windows, identity changes and restoration failures stop the relevant step; do not substitute monitor resolution for the measured viewport.
 - Read [the public experience guide](AI_Skills/Pitfall/ThingsShouldBeAvoided.md) for the relevant surface family. Distinguish decorative backplates, content surfaces and real controls; preserve input boundaries, focus, scroll occlusion, syntax/data colors and avatar layout. A transparent wrapper is not a recolored wrapper.
 - Runtime v2 shared scenes are required by newly created Skins. Existing v1 Skins remain supported; preserve the bundled Kurumi Skin and its source images byte-for-byte. See [skin-format.md](references/skin-format.md).
 - Keep generated prompts, reports, source paths, user choices and raw evidence private in the session. Do not include them in public packages. Read detailed files only for the active step; normally the small CLI summary is enough.

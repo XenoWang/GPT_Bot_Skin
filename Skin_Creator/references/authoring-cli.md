@@ -65,6 +65,24 @@ MCP 使用 `{"kind":"generated","provider":"mcp","providerName":"<configured too
 
 Theme mode accepts the displayed candidates; multiple choices are supported. Surface colors are derived from measured foreground samples using opaque backgrounds to avoid photo-dependent contrast. Samples are finite, not proof of every text node. Conflicting foreground colors require separate adapter mapping, not silent text recoloring.
 
+用户明确指定文字或边框时，可在 `custom` 模式补充样式，例如浅粉气泡、黑字和一像素玫粉细边框：
+
+```json
+{"mode":"custom","colors":["#F8CCD7"],"style":{"text":"#000000","border":"#D98BA4","borderWidth":1},"regionStyles":{"composer":{"surface":"#FFE4EC"}}}
+```
+
+`style` 只接受 `text`、`border`、`borderWidth`；`regionStyles` 还可指定 `surface`，键必须是已选择的普通控件/内容区域。色值为 `#RRGGBB`，边框宽度为 0–8。显式文字下只从用户选择的原色中选取可读底色，不再为旧白字自动调暗；对比度不足 4.5:1 时返回区域冲突。显式底色也不偷偷改色。文字和边框修改会使整体预览确认失效，背景确认仍可复用。
+
+代码块、工具卡、改动记录、活动数据和表格保留原语义前景，不接受文字覆盖；这些区域仍按实测前景适配底色。场景背景和滚动条不使用本控件样式覆盖。只对已映射表面设置文字，不使用后代通配选择器；内层显式颜色和混合内容仍须在真实预览时确认。
+
+For explicit text/borders, custom input accepts `style:{text,border,borderWidth}` and per-region `regionStyles` (also allowing `surface`). Explicit foregrounds use an unchanged selected surface with at least 4.5:1 contrast, or fail with the region name. Invalid options fail without replacing accepted colors. Semantic content regions retain native foregrounds; scene and scrollbar styling is separate. Changes invalidate complete-preview acceptance, not accepted background geometry. Native descendants may carry their own colors and still require visual inspection.
+
+## 原生窗口测量 / Native window measurement
+
+保留可用的 CDP 窗口控制。仅在接口明确不支持窗口查询时，使用包内 Windows 原生接口，复核官方会话并按进程身份定位可见顶层窗口。多个窗口需要当前页面焦点与前台窗口唯一对应；无法唯一确定则停止。保存完整窗口位置，再测量普通/最大化的真实网页视口；退出或异常均尝试恢复并核对。恢复失败写入盘点缺口，不能导出。Python 路径不调用 PowerShell；原路径无需新增 Python 依赖。
+
+The native fallback uses EnumWindows, GetWindowThreadProcessId and Get/SetWindowPlacement in the window's DPI context. Every host operation revalidates the managed owner; saved PID/start identity and HWND must still match. It does not launch or terminate the client. A monitor's advertised dimensions are not a measured viewport. API contracts: [window placement](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowplacement), [DPI context](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setthreaddpiawarenesscontext).
+
 ## 图片与交付 / Assets and export
 
 缩放比例为 `max(targetWidth/sourceWidth,targetHeight/sourceHeight)`；不得大于 1。裁剪窗口必须完整包含保护框。输入 EXIF 方向先归一，保护框应以用户看到的正常方向定义。输入采用本机 Windows 解码器；PNG/JPEG 是通用输入，WebP 缺少解码器时报错。每张图 20 MiB、解码 6400 万像素、最终包 48 MiB 的限制仍有效。建议针对目标尺寸导出清晰素材，不先生成超大原图再超限提交。

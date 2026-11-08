@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {managedPage} from './managed-page.mjs';
+import {windowController} from './window-control.mjs';
 import {captureRegions,makeCatalog} from './inspect-ui-regions.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const settle=()=>new Promise(resolve=>setTimeout(resolve,250));
@@ -49,11 +50,11 @@ export function coverageBlockers(report,regions,excluded=[]){
  const allowed=new Set(excluded);
  return rows.filter(s=>s.status!=='observed'&&!allowed.has(s.id)&&s.regions.some(r=>regions.includes(r))).map(s=>s.id);
 }
-export async function inventory({statePath,targetId,previous=null,onProgress=async()=>{},manualState=null}){
+export async function inventory({statePath,targetId,previous=null,onProgress=async()=>{},manualState=null},{connect=managedPage,windows=windowController}={}){
  const adapter=JSON.parse(await readFile(path.join(ROOT,'adapters/codex-26.1103.json'),'utf8'));
  const plan=JSON.parse(await readFile(path.join(ROOT,'adapters/authoring-26.1103.json'),'utf8'));
- const client=await managedPage(statePath,targetId),{page,browser}=client;
- let windowInfo,normalWindowInfo,navigationSaved=false,navigationMoved=false,windowChanged=false;
+ const client=await connect(statePath,targetId),{page}=client;
+ let windowControl,navigationSaved=false,navigationMoved=false;
  const binding=createHash('sha256').update(JSON.stringify([client.clientVersion,adapter,plan,client.targetId])).digest('hex');
  let report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion:client.clientVersion,adapterVersion:adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[],samples:[],binding,coverage:{states:[],restored:null},targetLimitReached:false};
  const capture=async(label)=>{const sample=await page.evaluate('('+captureRegions.toString()+')('+JSON.stringify(adapter)+')');sample.label=label;report.samples.push(sample);report.coverageLabels.push(label);return sample;};
@@ -70,17 +71,14 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
    if(!evidence||sample.truncated)throw new Error('Requested state was not structurally observed');
    Object.assign(row,{status:'observed',sample:report.samples.length-1,evidence:'native-structure'});await onProgress(report);return {report,catalog:makeCatalog(report)};
   }
-  windowInfo=await browser.send('Browser.getWindowForTarget',{targetId:client.targetId});
-  if(windowInfo.bounds.windowState==='normal')normalWindowInfo=windowInfo;
+  windowControl=await windows(client,statePath);
+  report.windowBackend=windowControl.backend;
   const saved=await page.evaluate('('+saveNavigation.toString()+')()');navigationSaved=saved.ready;
   if(!saved.ready)throw new Error('Inventory paused: leave the editable field without changing its content');
   await capture('initial');
-  if(windowInfo.bounds.windowState!=='normal'){windowChanged=true;await browser.send('Browser.setWindowBounds',{windowId:windowInfo.windowId,bounds:{windowState:'normal'}});await settle();}
+  await windowControl.normal();await settle();
   const normal=await capture('windowed');
-  normalWindowInfo=await browser.send('Browser.getWindowForTarget',{targetId:client.targetId});
-  {
-   windowChanged=true;await browser.send('Browser.setWindowBounds',{windowId:windowInfo.windowId,bounds:{windowState:'maximized'}});await settle();
-  }
+  await windowControl.maximize();await settle();
   const max=await capture('maximized');report.measurement={maximized:true,pixelRatio:max.pixelRatio,canvas:max.canvas,windowed:{pixelRatio:normal.pixelRatio,canvas:normal.canvas}};
   const resumable=previous?.binding===binding&&JSON.stringify(previous.measurement)===JSON.stringify(report.measurement);
   if(resumable){report.samples.push(...previous.samples);report.coverageLabels.push(...previous.coverageLabels);}
@@ -110,7 +108,7 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
   if(!manualState){
    let restored=true;
     try{if(navigationSaved){const original=await page.evaluate('window.__codexCreatorNavigation?.leftOpen');if(['true','false'].includes(original)){const result=await page.evaluate('('+sidebarState.toString()+')('+(original==='true')+')');if(!result.requested)restored=false;await settle();if(await page.evaluate('document.querySelector("[data-app-shell-frame]")?.getAttribute("data-app-shell-sidebar-open")')!==original)restored=false;}restored=!!await page.evaluate('('+restoreNavigation.toString()+')('+navigationMoved+')')&&restored;}}catch{restored=false;}
-    try{if(windowInfo&&windowChanged){if(normalWindowInfo){const b=normalWindowInfo.bounds;await browser.send('Browser.setWindowBounds',{windowId:windowInfo.windowId,bounds:{windowState:'normal'}});await browser.send('Browser.setWindowBounds',{windowId:windowInfo.windowId,bounds:{left:b.left,top:b.top,width:b.width,height:b.height}});}if(windowInfo.bounds.windowState!=='normal')await browser.send('Browser.setWindowBounds',{windowId:windowInfo.windowId,bounds:{windowState:windowInfo.bounds.windowState}});}}catch{restored=false;}
+   try{if(windowControl)await windowControl.restore();}catch(error){restored=false;report.coverage.restoreError=error.message;}
     report.coverage.restored=restored;try{await onProgress(report);}catch(e){client.close();throw e;}
   }
   client.close();

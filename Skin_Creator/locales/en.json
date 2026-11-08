@@ -32,7 +32,7 @@
     "property.surfaceOpacity": "Surface opacity",
     "property.border": "Border color",
     "property.borderOpacity": "Border opacity",
-    "property.text": "Scrollbar thumb",
+    "property.text": "Text color (when requested)",
     "reason.hidden": "Hidden state",
     "reason.not-observed": "Not observed",
     "reason.selector-error": "Selector error",
@@ -57,7 +57,9 @@
     "catalog.examples": "Skin forms (concept examples using measured layout)",
     "catalog.candidates": "Unclassified structures (not configurable regions yet)",
     "python.help": "Standalone Creator (Python 3.10+, Node.js 22+, Windows).\nFrom the extracted Creator folder:\npython Start-Skin.py configure --proxy-mode direct\npython Start-Skin.py\npython Create-Skin.py start --session work/my-skin --state <managed-session.json> --id my-skin --name \"My Skin\"\nChoose proxy instead of direct when needed. All runtime services are included in this package; no sibling package is required.",
-    "python.error": "Python Creator could not finish: {detail}"
+    "python.error": "Python Creator could not finish: {detail}",
+    "property.borderWidth": "Border width",
+    "property.scrollbarThumb": "Scrollbar thumb"
   },
   "errors": {
     "*": "The step could not finish: {detail}",
@@ -154,7 +156,26 @@
     "Session file too large": "Session file too large",
     "No unambiguous verified native window; select a target explicitly": "No unambiguous verified native window; select a target explicitly",
     "Keep sessions under the package .local/creator/ or work/ directory": "Keep sessions under the package .local/creator/ or work/ directory",
-    "Inventory requires --state; start the bundled managed runtime first": "Inventory requires --state; start the bundled managed runtime first"
+    "Inventory requires --state; start the bundled managed runtime first": "Inventory requires --state; start the bundled managed runtime first",
+    "Invalid explicit control style": "Invalid explicit control style",
+    "Border width must be within 0..8": "Border width must be within 0..8",
+    "Explicit colors must use #RRGGBB": "Explicit colors must use #RRGGBB",
+    "Invalid palette options": "Invalid palette options",
+    "Explicit control styles require custom colors": "Explicit control styles require custom colors",
+    "Invalid region style overrides": "Invalid region style overrides",
+    "Explicit style requires a selected control region: *": "Explicit style requires a selected control region: {detail}",
+    "Preserve native semantic foregrounds for *": "Preserve native semantic foregrounds for {detail}",
+    "EXPLICIT_CONTRAST_CONFLICT: *": "EXPLICIT_CONTRAST_CONFLICT: {detail}",
+    "Invalid native window inventory": "Invalid native window inventory",
+    "Native inventory requires visible normal or maximized windows": "Native inventory requires visible normal or maximized windows",
+    "No unambiguous native window; focus the intended Codex window and retry": "No unambiguous native window; focus the intended Codex window and retry",
+    "The selected native page is not visible": "The selected native page is not visible",
+    "Native window transition was not observed": "Native window transition was not observed",
+    "Native window restoration was not observed": "Native window restoration was not observed",
+    "Inventory requires a normal or maximized window": "Inventory requires a normal or maximized window",
+    "CDP window identity changed": "CDP window identity changed",
+    "CDP window transition was not observed": "CDP window transition was not observed",
+    "CDP window restoration was not observed": "CDP window restoration was not observed"
   },
   "regions": {
     "titlebar": "Top bar",

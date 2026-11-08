@@ -1,7 +1,36 @@
 import {createHash} from 'node:crypto';
 import {validateManifest,SCENE_REGIONS,REGIONS,fitImage} from '../runtime/renderer/core.mjs';
 import {coverageBlockers} from '../runtime/scripts/coverage-runner.mjs';
-import {paletteCandidates,readableSurface} from './image-math.mjs';
+import {paletteCandidates,readableSurface,contrast} from './image-math.mjs';
+// Color-bearing content keeps native semantic foregrounds. Explicit text
+// affects mapped ordinary surfaces, never a universal descendant selector.
+export const PRESERVE_TEXT_REGIONS=Object.freeze(['codeBlocks','toolCards','changeSummary','profileActivity','tables']);
+const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+function normalizeStyle(value,allowSurface=false){
+ if(!object(value)||Object.keys(value).some(k=>!['text','border','borderWidth',...(allowSurface?['surface']:[])].includes(k)))throw new Error('Invalid explicit control style');
+ const result={};
+ for(const [key,val]of Object.entries(value)){
+  if(key==='borderWidth'){if(typeof val!=='number'||!Number.isFinite(val)||val<0||val>8)throw new Error('Border width must be within 0..8');result[key]=val;}
+  else{if(typeof val!=='string'||!/^#[\da-f]{6}$/i.test(val))throw new Error('Explicit colors must use #RRGGBB');result[key]=val.toUpperCase();}
+ }
+ return result;
+}
+export function controlStyle(palette,key,measured){
+ const general={...(palette.style??{})};if(PRESERVE_TEXT_REGIONS.includes(key))delete general.text;
+ const explicit={...general,...palette.regionStyles?.[key]},foregrounds=explicit.text?[explicit.text]:measured;
+ if(!foregrounds?.length)throw new Error('Missing foreground color samples for '+key);
+ let style;
+ if(explicit.surface||explicit.text){
+  const candidates=explicit.surface?[explicit.surface]:palette.selected;
+  const surface=candidates.find(color=>foregrounds.every(f=>contrast(color,f)>=4.5));
+  if(!surface)throw new Error('EXPLICIT_CONTRAST_CONFLICT: '+key);
+  style={surface,surfaceOpacity:1,border:palette.selected.at(-1),borderOpacity:.65,borderWidth:1};
+ }else style=readableSurface(palette.selected,foregrounds);
+ if(explicit.text)style.text=explicit.text;
+ if(explicit.border){style.border=explicit.border;style.borderOpacity=1;}
+ if(explicit.borderWidth!==undefined)style.borderWidth=explicit.borderWidth;
+ return style;
+}
 export const digest=value=>createHash('sha256').update(typeof value==='string'||Buffer.isBuffer(value)?value:JSON.stringify(value)).digest('hex');
 export function createSession(id,name,systemLanguage='en'){
  validateManifest({schemaVersion:1,id,name,regions:{}});
@@ -90,19 +119,33 @@ export function buildManifest(session,stage='background'){
   for(const key of session.selection.regions){
    if(result.scene?.regions.includes(key)||regions[key]?.background)continue;
    if(key==='scrollbars'){regions[key]={enabled:true,style:{surface:session.palette.selected[0],text:session.palette.selected.at(-1)}};continue;}
-   const colors=session.foregrounds?.[key];
-   if(!colors?.length)throw new Error('Missing foreground color samples for '+key);
-   regions[key]={enabled:true,style:readableSurface(session.palette.selected,colors)};
+   regions[key]={enabled:true,style:controlStyle(session.palette,key,session.foregrounds?.[key])};
   }
  }
  return validateManifest(result);
 }
 export function choosePalette(session,input){
  if(session.confirmations.background?.revision!==backgroundRevision(session))throw new Error('Confirm the current background before choosing control colors');
+ if(!object(input)||Object.keys(input).some(k=>!['mode','colors','style','regionStyles'].includes(k)))throw new Error('Invalid palette options');
  if(!['theme','custom'].includes(input.mode)||!Array.isArray(input.colors)||!input.colors.length||input.colors.length>5||new Set(input.colors).size!==input.colors.length||input.colors.some(c=>!/^#[\da-f]{6}$/i.test(c)))throw new Error('Select one to five valid colors');
+ if(input.mode!=='custom'&&(input.style!==undefined||input.regionStyles!==undefined))throw new Error('Explicit control styles require custom colors');
  const candidates=paletteCandidates(Object.values(session.assets).flatMap(a=>a.colors));
  if(input.mode==='theme'&&input.colors.some(c=>!candidates.includes(c.toUpperCase())))throw new Error('Select from the displayed palette');
- session.palette={mode:input.mode,selected:input.colors.map(c=>c.toUpperCase())};invalidate(session,'complete');return session.palette;
+ const palette={mode:input.mode,selected:input.colors.map(c=>c.toUpperCase())};
+ if(input.style!==undefined)palette.style=normalizeStyle(input.style);
+ if(input.regionStyles!==undefined){
+  if(!object(input.regionStyles))throw new Error('Invalid region style overrides');
+  palette.regionStyles={};
+  for(const [key,value]of Object.entries(input.regionStyles)){
+   if(!session.selection.regions.includes(key)||SCENE_REGIONS.includes(key)||key==='scrollbars')throw new Error('Explicit style requires a selected control region: '+key);
+   const style=normalizeStyle(value,true);
+   if(style.text&&PRESERVE_TEXT_REGIONS.includes(key))throw new Error('Preserve native semantic foregrounds for '+key);
+   palette.regionStyles[key]=style;
+  }
+ }
+ // Fail before changing the session; old accepted colors remain recoverable.
+ if(input.style!==undefined||input.regionStyles!==undefined)for(const key of session.selection.regions)if(!SCENE_REGIONS.includes(key)&&key!=='scrollbars')controlStyle(palette,key,session.foregrounds?.[key]);
+ session.palette=palette;invalidate(session,'complete');return session.palette;
 }
 export function confirm(session,stage,revision,note){
  if(typeof note!=='string'||!note.trim())throw new Error('Record the actual user confirmation; this command cannot create consent');

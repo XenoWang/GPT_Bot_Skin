@@ -8,6 +8,8 @@
 
 创作流程：盘点及编号图 → 一体式/分开式与语言 → 给图或确认提示词后生成 → 主体保护裁剪 → 背景预览确认 → 配色多选及控件适配 → 整体确认后导出。已有选择可续用，常用窗口化/最大化定位预计算，固定尺寸复用，新尺寸补算一次并缓存。
 
+盘点支持受管原生窗口测量与恢复：客户端不支持 CDP 窗口接口时按已校验进程定位窗口，目标有歧义则停止。自定义控件颜色支持显式文字、边框及宽度，浅色底配黑字时保持所选底色；对比不足明确报错。代码和状态语义色保留，具体字段见创作参考。
+
 ### 从本包启动
 
 需要 Windows、Node.js 22+。可选 Python 3.10+ 链路，内部不调用 PowerShell。以下命令在解压后的 Creator 目录执行：
@@ -49,6 +51,8 @@ A standalone authoring package: inventory, validation, previews, image processin
 Requires Windows and Node 22+. The optional Python 3.10+ route does not invoke PowerShell internally. Run the commands above from the extracted Creator folder; choose direct or your own local HTTP proxy. Python and PowerShell routes default to separate `CodexSkinCreatorPython` and `CodexSkinCreator` state folders in local application data. Use the session path reported by the launcher. Reuse an explicitly selected compatible managed session instead of launching a second assistant. The original CMD/PowerShell entrypoints remain available.
 
 Authoring proceeds from measured diagrams through form/language, image source, approved generation prompts, protected crops, background acceptance, multiselect colors, complete acceptance and data-only export. Unvisited/unsupported states remain explicit gaps. Normal/maximized placements are precomputed; fixed sizes reuse them. Existing Skins and their configurable preferences are preserved.
+
+Inventory falls back to verified native Windows placement when the CDP window interface is unavailable, and restores the original placement. Ambiguous windows and identity failures stop the operation. Custom control colors support explicit foregrounds, border colors and widths; requested surfaces are retained or rejected for contrast, while semantic foregrounds remain native.
 
 Creator translations live in `locales/`; add a locale JSON file without changing source. Runtime panel translations are in `runtime/locales/`. PNG/JPEG are the portable image inputs; other formats depend on installed codecs. No automatic dependency installation or policy bypass occurs.
 

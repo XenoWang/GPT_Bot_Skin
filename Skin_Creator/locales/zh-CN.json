@@ -32,7 +32,7 @@
     "property.surfaceOpacity": "底色不透明度",
     "property.border": "边框颜色",
     "property.borderOpacity": "边框不透明度",
-    "property.text": "滚动条滑块",
+    "property.text": "文字颜色（明确指定时）",
     "reason.hidden": "隐藏状态",
     "reason.not-observed": "尚未观察",
     "reason.selector-error": "区域选择器错误",
@@ -57,7 +57,9 @@
     "catalog.examples": "皮肤形式示例（借用实测布局的概念示意）",
     "catalog.candidates": "待归类结构（尚不属于可配置区域）",
     "python.help": "独立 Creator（需要 Python 3.10+、Node.js 22+ 和 Windows）。\n从解压后的 Creator 目录运行：\npython Start-Skin.py configure --proxy-mode direct\npython Start-Skin.py\npython Create-Skin.py start --session work/my-skin --state <受管会话的session.json> --id my-skin --name \"My Skin\"\n以上为直连示例，需要代理时选择 proxy。包内已包含所需运行服务，无需同级的其他包。",
-    "python.error": "Python 创作入口未完成：{detail}"
+    "python.error": "Python 创作入口未完成：{detail}",
+    "property.borderWidth": "边框宽度",
+    "property.scrollbarThumb": "滚动条滑块"
   },
   "errors": {
     "*": "当前步骤未完成：{detail}",
@@ -91,7 +93,26 @@
     "Missing foreground color samples for *": "以下区域缺少前景色采样：{detail}",
     "Image decoder unavailable or invalid image. Provide PNG/JPEG; WebP requires an installed compatible Windows decoder.": "图片无效或缺少解码器。请使用 PNG/JPEG；WebP 需要本机兼容解码器。",
     "Keep sessions under the package .local/creator/ or work/ directory": "会话请保存在本包的 .local/creator/ 或 work/ 目录中。",
-    "Inventory requires --state; start the bundled managed runtime first": "盘点需要 --state；请先通过包内启动入口建立受管会话。"
+    "Inventory requires --state; start the bundled managed runtime first": "盘点需要 --state；请先通过包内启动入口建立受管会话。",
+    "Invalid explicit control style": "显式控件样式包含不支持的字段或格式。",
+    "Border width must be within 0..8": "边框宽度必须在 0–8 像素之间。",
+    "Explicit colors must use #RRGGBB": "显式颜色必须使用 #RRGGBB 格式。",
+    "Invalid palette options": "配色配置包含不支持的字段。",
+    "Explicit control styles require custom colors": "指定文字或边框样式时，请使用自定义配色。",
+    "Invalid region style overrides": "区域样式覆盖必须是有效对象。",
+    "Explicit style requires a selected control region: *": "样式覆盖必须指向已选择的控件区域：{detail}",
+    "Preserve native semantic foregrounds for *": "该区域须保留原语义文字颜色：{detail}",
+    "EXPLICIT_CONTRAST_CONFLICT: *": "所选底色与文字的对比度不足，未自动改色。请调整此区域：{detail}",
+    "Invalid native window inventory": "原生窗口盘点结果无效。",
+    "Native inventory requires visible normal or maximized windows": "请确保目标窗口可见，且处于普通或最大化状态。",
+    "No unambiguous native window; focus the intended Codex window and retry": "无法唯一确定窗口，请聚焦需要创作的 Codex 窗口后重试。",
+    "The selected native page is not visible": "所选原生页面当前不可见。",
+    "Native window transition was not observed": "未观察到请求的原生窗口状态变化。",
+    "Native window restoration was not observed": "未确认原生窗口恢复成功，请检查窗口后再继续。",
+    "Inventory requires a normal or maximized window": "盘点需要普通或最大化的窗口。",
+    "CDP window identity changed": "盘点期间窗口身份发生变化，已停止操作。",
+    "CDP window transition was not observed": "未观察到请求的窗口状态变化。",
+    "CDP window restoration was not observed": "未确认窗口恢复成功，请检查窗口后再继续。"
   },
   "regions": {
     "titlebar": "顶部栏",

@@ -4,7 +4,7 @@ import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {createSession,selectLayout,setSource,setPrompt,requiredSlots,backgroundRevision,completeRevision,buildManifest,choosePalette,confirm,invalidate,summary,digest} from './workflow.mjs';
+import {createSession,selectLayout,setSource,setPrompt,requiredSlots,backgroundRevision,completeRevision,buildManifest,choosePalette,confirm,invalidate,summary,digest,PRESERVE_TEXT_REGIONS} from './workflow.mjs';
 import {cropPlan,paletteCandidates,hex} from './image-math.mjs';
 import {writeCatalog} from './catalog.mjs';
 import {inventory} from '../runtime/scripts/coverage-runner.mjs';
@@ -98,6 +98,7 @@ export async function run(argv=process.argv.slice(2)){
     const data=await inventory({statePath:args.state,targetId:args.target,previous:session.inventory,manualState:args.command==='capture'?args.slot:null,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}});
     session.inventory=data.report;const labels=Object.fromEntries(await Promise.all(['en','zh-CN'].map(async code=>[code,JSON.parse(await readFile(path.join(ROOT,'runtime','locales',code+'.json'),'utf8'))])));
     session.catalog=makeCatalog(data.report,labels);session.foregrounds=foregroundSamples(data.report);
+    for(const region of session.catalog.regions)if(!region.sharedScene&&region.key!=='scrollbars'){region.configuration.push('borderWidth');if(!PRESERVE_TEXT_REGIONS.includes(region.key))region.configuration.push('text');}
     if(before!==data.report.binding||measurement!==JSON.stringify(data.report.measurement)){invalidate(session,'prompt');session.selection=null;}
     const catalog=await writeCatalog(path.join(directory,'catalog'),data.report,session.catalog,currentLocale);
     await atomicJSON(path.join(directory,'regions.json'),session.catalog);result={...summary(session),catalog,unclassifiedCandidates:session.catalog.candidates.length,question:t('question.layout')};break;

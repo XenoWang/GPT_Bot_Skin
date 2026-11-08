@@ -153,8 +153,13 @@ class StandalonePackages(unittest.TestCase):
     def test_creator_zip_works_without_siblings_and_preserves_authoring_imports(self):
         package, unrelated, env, manifest = self.pack_and_extract('Skin_Creator')
         self.check_modules_and_build(package, unrelated, env)
-        for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/adapters/authoring-26.1103.json', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
+        for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/scripts/window-control.mjs', 'runtime/scripts/native-window.py', 'runtime/scripts/native-window.cs', 'runtime/scripts/Native-CreatorWindow.ps1', 'runtime/adapters/authoring-26.1103.json', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
             self.assertIn(name, manifest['files'])
+        # Load the real new Python helper from the isolated package. Original
+        # Creator/Usage reads remain denied by the inherited audit guard.
+        import_window = "import sys,runpy,ctypes;from pathlib import Path;root=Path(sys.argv[1]);sys.path.insert(0,str(root/'runtime/scripts'));module=runpy.run_path(str(root/'runtime/scripts/native-window.py'));print(ctypes.sizeof(module['Placement']))"
+        loaded = subprocess.run([sys.executable, '-X', 'utf8', '-c', import_window, str(package)], cwd=unrelated, env=env, capture_output=True, text=True, check=True)
+        self.assertEqual(loaded.stdout.strip(), '44')
         help_result = self.python_entry(package / 'Create-Skin.py', ['--help'], cwd=unrelated, env=env)
         self.assertIn('Creator', help_result.stdout)
         session = package / 'work' / 'isolated-session'

@@ -23,6 +23,8 @@ For continuation, run `status` with the same `--session`; reuse confirmed choice
 
 Show the measured numbered diagram and matching region table. Explain coverage gaps together, without making the user inspect each selector. Unknown mappings or unsupported versions require adapter work before being called supported. Backward compatibility is not promised.
 
+If settings remain unvisited, open the native Settings entry with permitted UI tools, without changing any setting, then run `capture-settings --state "<session.json>"` with the current creation session. This batches known settings tabs and restores the selected settings tab. Afterwards return to the original workspace using the observed native return control. It does not read protected password states or create missing business content. Versioned navigation aliases and sidebar labels live in `runtime/adapters/authoring-controls-26.1103.json`; changed aliases invalidate only their affected coverage observations, including before preview/export.
+
 ## User decisions, in order
 
 1. **Form and language:** explain unified = one horizontal image in a shared scene; separate = independent main/sidebar images, optionally a split sidebar. Ask Chinese or English (and any additional installed Creator locale), preselected from the detected system language. Honor an existing choice. Present any needed coverage exclusions in this same round. `sidebarLayout` alone is not the whole-Skin form.

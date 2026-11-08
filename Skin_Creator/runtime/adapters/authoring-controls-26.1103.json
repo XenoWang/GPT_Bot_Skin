@@ -1,0 +1,13 @@
+{
+  "version": "26.1103.4239.0",
+  "navigationAliases": {
+    "page-library": {"kind": "destination", "key": "images"},
+    "page-settings": {"kind": "settings", "key": "general-settings"},
+    "settings-general": {"kind": "settings", "key": "general-settings"},
+    "settings-plugins": {"kind": "settings", "key": "plugins-settings"},
+    "settings-hooks": {"kind": "settings", "key": "hooks-settings"},
+    "settings-git": {"kind": "settings", "key": "git-settings"}
+  },
+  "sidebarToggleLabels": ["Toggle sidebar", "Open sidebar", "Close sidebar", "Hide sidebar", "Show sidebar", "切换侧栏", "打开侧栏", "关闭侧栏", "隐藏侧边栏", "显示侧边栏"],
+  "protectedStates": ["settings-passwords"]
+}

@@ -31,6 +31,9 @@ def load_window_module():
 
 
 class CreatorWindowStyleContracts(unittest.TestCase):
+    def test_settings_batch_navigation_and_mapping_contracts(self):
+        subprocess.run(['node', '--test', 'tests/settings-capture.test.mjs'], cwd=RUNTIME, check=True, timeout=90)
+
     def test_window_orchestration_and_explicit_style_contracts(self):
         subprocess.run(['node', '--test', 'tests/window-style.test.mjs'], cwd=RUNTIME, check=True, timeout=90)
 

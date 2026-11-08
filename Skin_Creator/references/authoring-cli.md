@@ -9,6 +9,7 @@ All commands share the prefix above. The CLI returns concise agent-facing summar
 | `start --state "<session.json>" --id my-skin --name "My Skin"` | 默认运行受管盘点，输出图表及缺口 / Starts inventory by default |
 | `inventory --state "..."` | 重新测量；同目标与布局可复用已完成状态 / Resumes matching coverage |
 | `capture --state "..." --slot menus` | UI 工具打开缺口状态后采集，必须满足结构证据 / Captures an actually opened missing state |
+| `capture-settings --state "..."` | 设置页已打开时批量补采已知子页并恢复原设置页 / Batches known tabs within an already-open native Settings surface |
 | `status` | 只显示当前阶段摘要、尺寸与缺口 / Shows summary, dimensions and gaps |
 | `select --input "<choices.json>"` | 保存形式、语言及区域范围 / Saves form, language and scope |
 | `source --input "<source.json>"` | 用户给图或生成 / Supplied or generated images |
@@ -30,6 +31,12 @@ All commands share the prefix above. The CLI returns concise agent-facing summar
 `--target` 可选，用于多个原生窗口无法自动唯一定位时。缺少受管会话、旧运行时或未知客户端版本会停止相关步骤，不放宽来源校验。窗口最大化和导航会在盘点结束后恢复；无法恢复会留下阻塞。仅打开安全入口，不提交业务操作。导航选中状态、边界及颜色属于采集内容；正文、输入值和凭据不是。
 
 Use `--target` only when multiple native windows cannot be disambiguated. Missing managed sessions, old runtimes and unknown client versions block dependent steps. Inventory restores window/navigation state and records restoration failures. It never submits business actions or reads messages, input values or credentials.
+
+设置入口未在初始导航中出现时，先用可用UI工具打开原生设置，再执行 `capture-settings`。脚本一次处理实际可访问的已知子页，验证可见导航的选中状态；结束或异常时恢复原设置子页。父级设置界面由打开它的UI步骤负责返回原工作区，不把子页恢复误称为已关闭设置。缺失入口保留缺口，密码等受保护状态不进入采集。
+
+`runtime/adapters/authoring-controls-26.1103.json` 维护同一语义状态对应的实际导航键及侧栏控件标签。每项已观察导航带实际目标键；别名变化只失效相关记录，不清空已确认图意或无关采样。预览/导出前也会复核这些记录；隐藏的缓存导航节点不能作为已到达页面的证据。修改配置须对应真实结构证据，不按猜测新增可执行入口。
+
+Open native Settings once through available UI tools, then use `capture-settings` to collect reachable known tabs. The batch restores the starting settings tab even on failure; the calling UI workflow returns from Settings to the original workspace. Protected states and missing entries stay explicit gaps. Versioned control aliases are configuration, and each observation retains its native navigation key. Changed mappings invalidate affected observations before preview/export; hidden cached navigation cannot prove coverage.
 
 ## 最小输入 / Minimal inputs
 

@@ -59,7 +59,9 @@
     "python.help": "独立 Creator（需要 Python 3.10+、Node.js 22+ 和 Windows）。\n从解压后的 Creator 目录运行：\npython Start-Skin.py configure --proxy-mode direct\npython Start-Skin.py\npython Create-Skin.py start --session work/my-skin --state <受管会话的session.json> --id my-skin --name \"My Skin\"\n以上为直连示例，需要代理时选择 proxy。包内已包含所需运行服务，无需同级的其他包。",
     "python.error": "Python 创作入口未完成：{detail}",
     "property.borderWidth": "边框宽度",
-    "property.scrollbarThumb": "滚动条滑块"
+    "property.scrollbarThumb": "滚动条滑块",
+    "reason.protected-state": "受保护状态，不读取内容",
+    "reason.navigation-mapping-changed": "入口对应关系已变化，需要补采"
   },
   "errors": {
     "*": "当前步骤未完成：{detail}",
@@ -112,7 +114,15 @@
     "Inventory requires a normal or maximized window": "盘点需要普通或最大化的窗口。",
     "CDP window identity changed": "盘点期间窗口身份发生变化，已停止操作。",
     "CDP window transition was not observed": "未观察到请求的窗口状态变化。",
-    "CDP window restoration was not observed": "未确认窗口恢复成功，请检查窗口后再继续。"
+    "CDP window restoration was not observed": "未确认窗口恢复成功，请检查窗口后再继续。",
+    "Unknown navigation state": "未知的导航状态。",
+    "Invalid navigation mapping": "导航对应关系无效。",
+    "Invalid authoring controls configuration": "创作控件版本配置无效。",
+    "Complete measured inventory before batch settings capture": "请先完成窗口实测盘点，再批量补采设置页。",
+    "Open an ordinary settings page before batch capture": "请先打开一个普通设置页，再进行批量补采。",
+    "Batch capture requires the same verified inventory window": "批量补采必须使用原盘点中已校验的同一窗口。",
+    "Protected state is not inspected: *": "不采集受保护状态：{detail}",
+    "Settings navigation restoration was not observed": "未确认恢复原设置页，请检查界面后再继续。"
   },
   "regions": {
     "titlebar": "顶部栏",

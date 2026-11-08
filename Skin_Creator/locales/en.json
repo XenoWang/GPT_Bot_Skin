@@ -59,7 +59,9 @@
     "python.help": "Standalone Creator (Python 3.10+, Node.js 22+, Windows).\nFrom the extracted Creator folder:\npython Start-Skin.py configure --proxy-mode direct\npython Start-Skin.py\npython Create-Skin.py start --session work/my-skin --state <managed-session.json> --id my-skin --name \"My Skin\"\nChoose proxy instead of direct when needed. All runtime services are included in this package; no sibling package is required.",
     "python.error": "Python Creator could not finish: {detail}",
     "property.borderWidth": "Border width",
-    "property.scrollbarThumb": "Scrollbar thumb"
+    "property.scrollbarThumb": "Scrollbar thumb",
+    "reason.protected-state": "Protected state; content is not inspected",
+    "reason.navigation-mapping-changed": "Navigation mapping changed; capture again"
   },
   "errors": {
     "*": "The step could not finish: {detail}",
@@ -98,7 +100,6 @@
     "Export to a new folder, not an installed/built-in Skin directory": "Export to a new folder, not an installed/built-in Skin directory",
     "Export destination already exists": "Export destination already exists",
     "Export readback failed": "Export readback failed",
-    "Commands: start, inventory, capture, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export": "Commands: start, inventory, capture, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export",
     "Invalid image dimensions": "Invalid image dimensions",
     "A normalized subject rectangle or explicit null is required": "A normalized subject rectangle or explicit null is required",
     "SOURCE_TOO_SMALL: provide an image at least *": "SOURCE_TOO_SMALL: provide an image at least {detail}",
@@ -175,7 +176,16 @@
     "Inventory requires a normal or maximized window": "Inventory requires a normal or maximized window",
     "CDP window identity changed": "CDP window identity changed",
     "CDP window transition was not observed": "CDP window transition was not observed",
-    "CDP window restoration was not observed": "CDP window restoration was not observed"
+    "CDP window restoration was not observed": "CDP window restoration was not observed",
+    "Unknown navigation state": "Unknown navigation state",
+    "Invalid navigation mapping": "Invalid navigation mapping",
+    "Invalid authoring controls configuration": "Invalid authoring controls configuration",
+    "Complete measured inventory before batch settings capture": "Complete measured inventory before batch settings capture",
+    "Open an ordinary settings page before batch capture": "Open an ordinary settings page before batch capture",
+    "Batch capture requires the same verified inventory window": "Batch capture requires the same verified inventory window",
+    "Protected state is not inspected: *": "Protected state is not inspected: {detail}",
+    "Settings navigation restoration was not observed": "Settings navigation restoration was not observed",
+    "Commands: start, inventory, capture, capture-settings, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export": "Commands: start, inventory, capture, capture-settings, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export"
   },
   "regions": {
     "titlebar": "Top bar",

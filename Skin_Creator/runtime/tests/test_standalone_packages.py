@@ -153,7 +153,7 @@ class StandalonePackages(unittest.TestCase):
     def test_creator_zip_works_without_siblings_and_preserves_authoring_imports(self):
         package, unrelated, env, manifest = self.pack_and_extract('Skin_Creator')
         self.check_modules_and_build(package, unrelated, env)
-        for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/scripts/window-control.mjs', 'runtime/scripts/native-window.py', 'runtime/scripts/native-window.cs', 'runtime/scripts/Native-CreatorWindow.ps1', 'runtime/adapters/authoring-26.1103.json', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
+        for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/scripts/window-control.mjs', 'runtime/scripts/native-window.py', 'runtime/scripts/native-window.cs', 'runtime/scripts/Native-CreatorWindow.ps1', 'runtime/adapters/authoring-26.1103.json', 'runtime/adapters/authoring-controls-26.1103.json', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
             self.assertIn(name, manifest['files'])
         # Load the real new Python helper from the isolated package. Original
         # Creator/Usage reads remain denied by the inherited audit guard.

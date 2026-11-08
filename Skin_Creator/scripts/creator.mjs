@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {createSession,selectLayout,setSource,setPrompt,requiredSlots,backgroundRevision,completeRevision,buildManifest,choosePalette,confirm,invalidate,summary,digest,PRESERVE_TEXT_REGIONS} from './workflow.mjs';
 import {cropPlan,paletteCandidates,hex} from './image-math.mjs';
 import {writeCatalog} from './catalog.mjs';
-import {inventory} from '../runtime/scripts/coverage-runner.mjs';
+import {inventory,captureSettings,authoringControls,refreshNavigationEvidence} from '../runtime/scripts/coverage-runner.mjs';
 import {makeCatalog} from '../runtime/scripts/inspect-ui-regions.mjs';
 import {managedPage} from '../runtime/scripts/managed-page.mjs';
 import {installAuthoring} from '../runtime/renderer/authoring.mjs';
@@ -88,14 +88,16 @@ export async function run(argv=process.argv.slice(2)){
   let session=await exists(sessionFile)?JSON.parse(await readFile(sessionFile,'utf8')):null;
   if(!session){if(args.command!=='start')throw new Error('Run start first');session=createSession(args.id??'skin-'+Date.now(),args.name??'My Skin',systemLanguage);await atomicJSON(sessionFile,session);}
   if(session.schemaVersion!==1)throw new Error('Unsupported creator session version');
+  if(session.inventory)refreshNavigationEvidence(session.inventory,await authoringControls());
   currentLocale=localeBundle(locales,session.selection?.language??session.suggestedLanguage);const t=(key,values)=>translate(currentLocale,key,values);
   const save=()=>atomicJSON(sessionFile,session);
   let result;
   switch(args.command){
-   case 'start':case 'inventory':case 'capture':{
+   case 'start':case 'inventory':case 'capture':case 'capture-settings':{
     if(!args.state)throw new Error('Inventory requires --state; start the bundled managed runtime first');
     const before=session.inventory?.binding,measurement=JSON.stringify(session.inventory?.measurement);
-    const data=await inventory({statePath:args.state,targetId:args.target,previous:session.inventory,manualState:args.command==='capture'?args.slot:null,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}});
+    const options={statePath:args.state,targetId:args.target,previous:session.inventory,manualState:args.command==='capture'?args.slot:null,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}};
+    const data=await (args.command==='capture-settings'?captureSettings(options):inventory(options));
     session.inventory=data.report;const labels=Object.fromEntries(await Promise.all(['en','zh-CN'].map(async code=>[code,JSON.parse(await readFile(path.join(ROOT,'runtime','locales',code+'.json'),'utf8'))])));
     session.catalog=makeCatalog(data.report,labels);session.foregrounds=foregroundSamples(data.report);
     for(const region of session.catalog.regions)if(!region.sharedScene&&region.key!=='scrollbars'){region.configuration.push('borderWidth');if(!PRESERVE_TEXT_REGIONS.includes(region.key))region.configuration.push('text');}
@@ -169,7 +171,7 @@ export async function run(argv=process.argv.slice(2)){
     for(const [name,bytes]of images)if(digest(await readFile(path.join(destination,name)))!==digest(bytes))throw new Error('Export readback failed');
     session.export={revision:completeRevision(session),path:destination,at:new Date().toISOString()};result={...session.export,files:images.length+1,excludedStates:session.selection.excludedStates};break;
    }
-   default:throw new Error('Commands: start, inventory, capture, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export');
+   default:throw new Error('Commands: start, inventory, capture, capture-settings, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export');
   }
   if(args.command!=='status'){session.events.push({command:args.command,at:new Date().toISOString()});await save();}
   if(result.slots)result.slots=result.slots.map(slot=>({...slot,description:t('slot.'+slot.id)}));

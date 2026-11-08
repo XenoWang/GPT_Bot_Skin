@@ -1,5 +1,5 @@
 """Additive Python chain: synthetic state, no real client startup or personal configuration."""
-from contextlib import nullcontext, redirect_stdout
+from contextlib import nullcontext, redirect_stdout, redirect_stderr
 import copy
 import ctypes as C
 import hashlib
@@ -326,11 +326,17 @@ class PythonLaunchers(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         args = ['asset', '--session', 'fixture directory & literal', '--input', 'image name.png']
-        with patch.object(module, 'messages', return_value={}), patch.object(module, 'node_executable', return_value=r'C:\Node Directory\node.exe'), patch.object(module.subprocess, 'run', return_value=types.SimpleNamespace(returncode=7)) as invoke:
+        output, errors = io.StringIO(), io.StringIO()
+        child = types.SimpleNamespace(returncode=7, stdout='fixture-output 中文\n'.encode('utf-8'), stderr=b'fixture-error\n')
+        with patch.object(module, 'messages', return_value={}), patch.object(module, 'node_executable', return_value=r'C:\Node Directory\node.exe'), patch.object(module.subprocess, 'run', return_value=child) as invoke, redirect_stdout(output), redirect_stderr(errors):
             self.assertEqual(module.main(args), 7)
+        self.assertEqual(output.getvalue(), 'fixture-output 中文\n')
+        self.assertEqual(errors.getvalue(), 'fixture-error\n')
         self.assertEqual(invoke.call_args.args[0], [r'C:\Node Directory\node.exe', str(REPO / 'Skin_Creator/scripts/creator.mjs'), *args])
         self.assertEqual(invoke.call_args.kwargs['env']['CODEX_SKIN_HOST_BACKEND'], 'python')
         self.assertNotIn('shell', invoke.call_args.kwargs)
+        self.assertEqual(invoke.call_args.kwargs['stdout'], subprocess.PIPE)
+        self.assertEqual(invoke.call_args.kwargs['stderr'], subprocess.PIPE)
         subprocess.run(['node', '--test', 'tests/python-backend.test.mjs'], cwd=ENGINE, check=True)
 
 

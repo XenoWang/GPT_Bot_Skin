@@ -3,7 +3,6 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
-import re
 import shutil
 import subprocess
 import sys
@@ -11,6 +10,7 @@ import tempfile
 import unittest
 import zipfile
 from unittest.mock import patch
+from test_creator import two_color_png
 
 RUNTIME = Path(__file__).resolve().parents[1]
 REPO = RUNTIME.parent.parent
@@ -30,6 +30,51 @@ class StandalonePackages(unittest.TestCase):
 
     def tearDown(self):
         self.temporary.cleanup()
+
+    def isolated_env(self, package, unrelated, *extra_paths):
+        guard = self.folder / 'dependency-guard'
+        guard.mkdir(exist_ok=True)
+        for source, target in [('isolation_sitecustomize.py', 'sitecustomize.py'), ('module_dependencies.mjs', 'module_dependencies.mjs'), ('entry_diagnostics.mjs', 'entry_diagnostics.mjs')]:
+            shutil.copy2(RUNTIME / 'tests/helpers' / source, guard / target)
+        allowed = [package.resolve(), guard.resolve(), unrelated.resolve(), *(p.resolve() for p in extra_paths)]
+        node = shutil.which('node')
+        self.assertIsNotNone(node)
+        env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONNOUSERSITE': '1', 'PYTHONPATH': str(guard), 'NODE_PATH': '',
+               'SKIN_ISOLATION_REPOSITORY': str(REPO.resolve()), 'SKIN_ISOLATION_ALLOWED': json.dumps([str(p) for p in allowed]),
+               'SKIN_ISOLATION_EXECUTABLES': json.dumps([str(Path(sys.executable).resolve()), str(Path(node).resolve())]),
+               'SKIN_ISOLATION_SCANNER': str(guard / 'module_dependencies.mjs'), 'SKIN_ISOLATION_ENTRY_DIAGNOSTICS': str(guard / 'entry_diagnostics.mjs')}
+        version = subprocess.run([node, '--version'], check=True, capture_output=True, text=True).stdout.strip().lstrip('v')
+        major, minor = map(int, version.split('.')[:2])
+        permission = '--permission' if (major, minor) >= (22, 13) else '--experimental-permission'
+        options = [permission, '--allow-child-process']
+        for item in allowed:
+            options += ['--allow-fs-read=' + item.as_posix(), '--allow-fs-write=' + item.as_posix()]
+        env['NODE_OPTIONS'] = ' '.join(json.dumps(option) for option in options)
+        return env
+
+    def python_entry(self, entry, args, *, cwd, env):
+        bootstrap = "import os,sys,runpy,sitecustomize;from pathlib import Path;sitecustomize.assert_active();assert sitecustomize.ACTIVE_PID==os.getpid();sys.argv=sys.argv[1:];sys.path.insert(0,str(Path(sys.argv[0]).resolve().parent));runpy.run_path(sys.argv[0],run_name='__main__')"
+        return subprocess.run([sys.executable, '-X', 'utf8', '-c', bootstrap, str(entry), *args], cwd=cwd, env=env, check=True, capture_output=True, text=True)
+
+    def parsed_modules(self, package, unrelated, env):
+        result = subprocess.run(['node', '--experimental-vm-modules', env['SKIN_ISOLATION_SCANNER'], str(package)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
+        return json.loads(result.stdout)
+
+    def check_relative_imports(self, package, unrelated, env):
+        for record in self.parsed_modules(package, unrelated, env):
+            file = package / record['file']
+            self.assertNotIn('Skin_Engine', file.read_text(encoding='utf-8'))
+            for specifier in record['specifiers']:
+                if specifier.startswith('.'):
+                    resolved = (file.parent / specifier).resolve()
+                    self.assertTrue(resolved.is_relative_to(package.resolve()), str(resolved))
+                    self.assertTrue(resolved.is_file(), str(resolved))
+                else:
+                    self.assertTrue(specifier.startswith('node:'), 'Undeclared external dependency: ' + specifier)
+
+    def assert_public_unchanged(self, package, manifest):
+        for name, expected in manifest['files'].items():
+            self.assertEqual(hashlib.sha256((package / name).read_bytes()).hexdigest(), expected, name)
 
     def test_source_layout_has_only_the_two_self_contained_package_roots(self):
         self.assertFalse((REPO / 'Skin_Engine').exists())
@@ -64,8 +109,8 @@ class StandalonePackages(unittest.TestCase):
         output = self.folder / (name + '.zip')
         unrelated = self.folder / name / 'unrelated cwd'
         unrelated.mkdir()
-        env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONPATH': ''}
-        result = subprocess.run([sys.executable, '-X', 'utf8', str(stage / 'Build-Zip.py'), '--output', str(output)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
+        env = self.isolated_env(stage, unrelated, output)
+        result = self.python_entry(stage / 'Build-Zip.py', ['--output', str(output)], cwd=unrelated, env=env)
         self.assertEqual(json.loads(result.stdout)['package'], name)
         with zipfile.ZipFile(output) as archive:
             expected = {name + '/' + relative for relative in ['release-manifest.json', *manifest['files']]}
@@ -88,24 +133,21 @@ class StandalonePackages(unittest.TestCase):
         self.assertFalse((isolated / 'Skin_Engine').exists())
         self.assertFalse((isolated / 'Skin_Creator').exists())
         self.assertFalse((isolated / 'Skin_Usage').exists())
-        return renamed, unrelated, env, manifest
+        return renamed, unrelated, self.isolated_env(renamed, unrelated), manifest
 
     def check_modules_and_build(self, package, unrelated, env):
-        # Import closure and source rebuild run from a renamed, isolated package.
-        for file in package.rglob('*.mjs'):
-            source = file.read_text(encoding='utf-8')
-            self.assertNotIn('Skin_Engine', source)
-            for match in re.finditer(r'\bfrom\s+[\'\"](\.[^\'\"]+)[\'\"]', source):
-                resolved = (file.parent / match[1]).resolve()
-                self.assertTrue(resolved.is_relative_to(package.resolve()), str(file))
-                self.assertTrue(resolved.is_file(), str(resolved))
+        # Real module parsing ignores builder strings/comments. File permissions also
+        # prevent the executed package from reading the original workspace packages.
+        self.check_relative_imports(package, unrelated, env)
         output = self.folder / ('built-' + str(len(list(self.folder.iterdir()))))
+        output.mkdir()
+        env = self.isolated_env(package, unrelated, output)
         script = "import path from 'node:path';import {pathToFileURL} from 'node:url';const root=process.argv[1],out=process.argv[2];const {buildPayload}=await import(pathToFileURL(path.join(root,'runtime/scripts/build-cdp-payload.mjs')).href);console.log(await buildPayload(out));"
         subprocess.run(['node', '--input-type=module', '-e', script, str(package), str(output)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
         # Reproducibility verifies that no assets outside the package are needed.
         self.assertEqual((output / 'cdp-payload.js').read_bytes(), (package / 'runtime/dist/cdp-payload.js').read_bytes())
         for entry in ['Start-Skin.py', 'Build-Zip.py']:
-            result = subprocess.run([sys.executable, '-X', 'utf8', str(package / entry), '--help'], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
+            result = self.python_entry(package / entry, ['--help'], cwd=unrelated, env=env)
             self.assertIn('usage:', result.stdout.lower())
 
     def test_creator_zip_works_without_siblings_and_preserves_authoring_imports(self):
@@ -113,15 +155,32 @@ class StandalonePackages(unittest.TestCase):
         self.check_modules_and_build(package, unrelated, env)
         for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/adapters/authoring-26.1103.json', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
             self.assertIn(name, manifest['files'])
-        help_result = subprocess.run([sys.executable, '-X', 'utf8', str(package / 'Create-Skin.py'), '--help'], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
+        help_result = self.python_entry(package / 'Create-Skin.py', ['--help'], cwd=unrelated, env=env)
         self.assertIn('Creator', help_result.stdout)
         session = package / 'work' / 'isolated-session'
         session.mkdir(parents=True)
         state = {'schemaVersion': 1, 'id': 'isolated-fixture', 'name': 'Isolated fixture', 'suggestedLanguage': 'en', 'inventory': None, 'selection': None, 'source': None, 'prompt': None, 'assets': {}, 'palette': None, 'confirmations': {}, 'previews': {}, 'events': []}
         (session / 'session.json').write_text(json.dumps(state), encoding='utf-8')
-        result = subprocess.run([sys.executable, '-X', 'utf8', str(package / 'Create-Skin.py'), 'status', '--session', str(session)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
-        self.assertEqual(json.loads(result.stdout)['id'], 'isolated-fixture')
-        self.assertEqual(json.loads(result.stdout)['inventory'], None)
+        result = self.python_entry(package / 'Create-Skin.py', ['status', '--session', str(session)], cwd=unrelated, env=env)
+        try:
+            status = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            diagnostic_env = {**env, 'CODEX_SKIN_HOST_BACKEND': 'python', 'CODEX_SKIN_PYTHON': sys.executable}
+            direct = subprocess.run(['node', '--import', Path(env['SKIN_ISOLATION_ENTRY_DIAGNOSTICS']).as_uri(), str(package / 'scripts/creator.mjs'), 'status', '--session', str(session)], cwd=unrelated, env=diagnostic_env, capture_output=True, text=True)
+            self.fail('Creator entry did not emit JSON: ' + json.dumps({'python': {'returncode': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr}, 'direct_node': {'returncode': direct.returncode, 'stdout': direct.stdout, 'stderr': direct.stderr}}, ensure_ascii=False))
+        self.assertEqual(status['id'], 'isolated-fixture')
+        self.assertEqual(status['inventory'], None)
+        # Exercise the packaged image helper and its Python child under the same guard.
+        state['selection'] = {'mode': 'unified', 'language': 'en', 'regions': ['chat'], 'excludedStates': [], 'sidebarSplit': False}
+        state['source'] = {'kind': 'provided'}
+        state['inventory'] = {'binding': 'isolated-fixture', 'measurement': {'maximized': True, 'pixelRatio': 1, 'canvas': {'window': [32, 16], 'main': [32, 16]}}}
+        (session / 'session.json').write_text(json.dumps(state), encoding='utf-8')
+        source = package / 'work' / 'source.png'
+        source.write_bytes(two_color_png())
+        result = self.python_entry(package / 'Create-Skin.py', ['asset', '--session', str(session), '--slot', 'scene', '--input', str(source), '--subject', 'null'], cwd=unrelated, env=env)
+        self.assertEqual(json.loads(result.stdout)['target'], [32, 16])
+        self.assertTrue(Path(json.loads(result.stdout)['image']).is_relative_to(package))
+        self.assert_public_unchanged(package, manifest)
 
     def test_usage_zip_configures_independently_without_launching_a_client(self):
         package, unrelated, env, manifest = self.pack_and_extract('Skin_Usage')
@@ -131,10 +190,69 @@ class StandalonePackages(unittest.TestCase):
         # Trap any accidental process/client activity while exercising the real entrypoint.
         script = "import sys,runpy;from pathlib import Path;root=Path(sys.argv[1]);sys.path.insert(0,str(root/'runtime/scripts'));import python_launcher as m\ndef forbidden(*a,**k): raise AssertionError('No client/process activity during configure')\nm.WindowsHost=forbidden;m.subprocess.Popen=forbidden;sys.argv=[str(root/'Start-Skin.py'),'configure','--proxy-mode','direct','--state-root',sys.argv[2]];runpy.run_path(sys.argv[0],run_name='__main__')"
         state = self.folder / 'usage-fixture-state'
+        env = self.isolated_env(package, unrelated, state)
         subprocess.run([sys.executable, '-X', 'utf8', '-c', script, str(package), str(state)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
         config = json.loads((package / 'runtime/launcher-python.json').read_text(encoding='utf-8'))
         self.assertEqual(config, {'port': 9335, 'proxyMode': 'direct', 'proxyServer': '', 'stateRoot': str(state)})
         self.assertFalse((state / 'session.json').exists())
+        self.assert_public_unchanged(package, manifest)
+
+    def test_module_parser_ignores_import_text_but_rejects_real_missing_dependencies(self):
+        package = self.folder / 'parser-package'
+        package.mkdir()
+        unrelated = self.folder / 'parser-cwd'
+        unrelated.mkdir()
+        (package / 'real.mjs').write_text('export const value=1;\n', encoding='utf-8')
+        (package / 'entry.mjs').write_text("export {value} from './real.mjs';\nconst saved=\"import x from './phantom.mjs';\";\n/* import './comment-only.mjs'; */\n", encoding='utf-8')
+        env = self.isolated_env(package, unrelated)
+        records = {row['file']: row['specifiers'] for row in self.parsed_modules(package, unrelated, env)}
+        self.assertEqual(records['entry.mjs'], ['./real.mjs'])
+        self.check_relative_imports(package, unrelated, env)
+        (package / 'entry.mjs').write_text("import './missing.mjs';\n", encoding='utf-8')
+        with self.assertRaises(AssertionError):
+            self.check_relative_imports(package, unrelated, env)
+
+    def test_isolation_denies_both_original_packages_and_misplaced_sibling_functions(self):
+        package = self.folder / 'guarded-package'
+        package.mkdir()
+        unrelated = self.folder / 'guarded-cwd'
+        unrelated.mkdir()
+        misplaced = self.folder / 'misplaced'
+        misplaced.mkdir()
+        helper = misplaced / 'helper.mjs'
+        helper.write_text('export const value=1;\n', encoding='utf-8')
+        (package / 'entry.mjs').write_text("import '../misplaced/helper.mjs';\n", encoding='utf-8')
+        env = self.isolated_env(package, unrelated)
+        with self.assertRaises(AssertionError):
+            self.check_relative_imports(package, unrelated, env)
+        targets = [REPO / 'Skin_Creator/SKILL.md', REPO / 'Skin_Usage/SKILL.md', helper]
+        node_import = "import{pathToFileURL}from'node:url';try{await import(pathToFileURL(process.argv[1]).href);process.exitCode=0;}catch(e){console.log(JSON.stringify({code:e.code,resource:e.resource}));process.exitCode=37;}"
+        denied_import = subprocess.run(['node', '--input-type=module', '-e', node_import, str(package / 'entry.mjs')], cwd=unrelated, env=env, capture_output=True, text=True)
+        self.assertEqual(denied_import.returncode, 37)
+        self.assertEqual(json.loads(denied_import.stdout)['code'], 'ERR_ACCESS_DENIED')
+        self.assertTrue(os.path.samefile(json.loads(denied_import.stdout)['resource'], helper))
+        node_read = "import{readFileSync}from'node:fs';try{readFileSync(process.argv[1]);process.exitCode=0;}catch(e){console.log(JSON.stringify({code:e.code,resource:e.resource}));process.exitCode=37;}"
+        python_read = "import sitecustomize,sys;sitecustomize.assert_active();open(sys.argv[1],'rb').read()"
+        for target in targets:
+            self.assertTrue(target.is_file())
+            denied = subprocess.run(['node', '--input-type=module', '-e', node_read, str(target)], cwd=unrelated, env=env, capture_output=True, text=True)
+            self.assertEqual(denied.returncode, 37)
+            result = json.loads(denied.stdout)
+            self.assertEqual(result['code'], 'ERR_ACCESS_DENIED')
+            self.assertTrue(os.path.samefile(result['resource'], target))
+            denied = subprocess.run([sys.executable, '-X', 'utf8', '-c', python_read, str(target)], cwd=unrelated, env=env, capture_output=True, text=True)
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn('SKIN_TEST_ISOLATION_BLOCKED', denied.stderr)
+            if os.name == 'nt':
+                namespaced = '\\\\?\\' + str(target.resolve())
+                denied_alias = subprocess.run([sys.executable, '-X', 'utf8', '-c', python_read, namespaced], cwd=unrelated, env=env, capture_output=True, text=True)
+                self.assertNotEqual(denied_alias.returncode, 0)
+                self.assertIn('SKIN_TEST_ISOLATION_BLOCKED', denied_alias.stderr)
+        # Verify the Python guard is inherited through the same Node child-process path.
+        child = "import{execFileSync}from'node:child_process';try{execFileSync(process.argv[1],['-X','utf8','-c',process.argv[2],process.argv[3]],{stdio:'pipe'});process.exitCode=0;}catch(e){process.stdout.write(String(e.stderr));process.exitCode=37;}"
+        denied = subprocess.run(['node', '--input-type=module', '-e', child, sys.executable, python_read, str(REPO / 'Skin_Usage/SKILL.md')], cwd=unrelated, env=env, capture_output=True, text=True)
+        self.assertEqual(denied.returncode, 37)
+        self.assertIn('SKIN_TEST_ISOLATION_BLOCKED', denied.stdout)
 
     def minimal(self):
         package = self.folder / 'minimal'

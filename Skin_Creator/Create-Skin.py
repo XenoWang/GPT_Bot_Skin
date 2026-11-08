@@ -29,6 +29,17 @@ def messages():
     return base
 
 
+def forward_output(stream, data):
+    if not data:
+        return
+    binary = getattr(stream, 'buffer', None)
+    if binary is not None:
+        binary.write(data)
+    else:
+        stream.write(data.decode('utf-8', errors='replace'))
+    stream.flush()
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     labels = messages()
@@ -37,7 +48,9 @@ def main(argv=None):
         return 0
     node = node_executable()
     # A list preserves spaces, quotes and non-ASCII paths without shell interpretation.
-    process = subprocess.run([node, str(CREATOR / 'scripts/creator.mjs'), *argv], env=child_environment(), cwd=Path.cwd(), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    process = subprocess.run([node, str(CREATOR / 'scripts/creator.mjs'), *argv], env=child_environment(), cwd=Path.cwd(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    forward_output(sys.stdout, process.stdout)
+    forward_output(sys.stderr, process.stderr)
     return process.returncode
 
 

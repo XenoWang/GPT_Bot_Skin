@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "id": "neutral-dark",
+  "name": "纯色深灰",
+  "description": "无需图片的第二套主题，可独立导入切换。",
+  "regions": {
+    "titlebar": {
+      "enabled": false,
+      "style": {}
+    },
+    "navigation": {
+      "enabled": false,
+      "style": {}
+    },
+    "sidebar": {
+      "enabled": true,
+      "style": {
+        "surface": "#191d26",
+        "text": "#e4e7ee"
+      }
+    },
+    "sidebarRows": {
+      "enabled": false,
+      "style": {}
+    },
+    "chatHeader": {
+      "enabled": false,
+      "style": {}
+    },
+    "chat": {
+      "enabled": true,
+      "style": {
+        "surface": "#17191f",
+        "text": "#e8e8ee"
+      }
+    },
+    "userMessages": {
+      "enabled": false,
+      "style": {}
+    },
+    "assistantMessages": {
+      "enabled": false,
+      "style": {}
+    },
+    "toolCards": {
+      "enabled": false,
+      "style": {}
+    },
+    "composer": {
+      "enabled": false,
+      "style": {}
+    },
+    "attachments": {
+      "enabled": false,
+      "style": {}
+    },
+    "codeBlocks": {
+      "enabled": false,
+      "style": {}
+    },
+    "tables": {
+      "enabled": false,
+      "style": {}
+    },
+    "rightPanel": {
+      "enabled": false,
+      "style": {}
+    },
+    "bottomPanel": {
+      "enabled": false,
+      "style": {}
+    },
+    "tabs": {
+      "enabled": false,
+      "style": {}
+    },
+    "menus": {
+      "enabled": false,
+      "style": {}
+    },
+    "dialogs": {
+      "enabled": false,
+      "style": {}
+    },
+    "settings": {
+      "enabled": false,
+      "style": {}
+    },
+    "buttons": {
+      "enabled": false,
+      "style": {}
+    },
+    "inputs": {
+      "enabled": false,
+      "style": {}
+    },
+    "tooltips": {
+      "enabled": false,
+      "style": {}
+    },
+    "scrollbars": {
+      "enabled": false,
+      "style": {}
+    },
+    "changeSummary": {
+      "enabled": false,
+      "style": {}
+    },
+    "pageHeaders": {
+      "enabled": false,
+      "style": {}
+    },
+    "pageCards": {
+      "enabled": false,
+      "style": {}
+    },
+    "questions": {
+      "enabled": false,
+      "style": {}
+    },
+    "profileActivity": {
+      "enabled": false,
+      "style": {}
+    }
+  }
+}

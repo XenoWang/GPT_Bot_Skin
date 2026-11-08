@@ -1,0 +1,27 @@
+/.local/
+/AI_Skills/
+/Skin_Engine/AI_Skills/
+/Skin_Engine/work/
+/Skin_Engine/dist/
+/Skin_Creator/AI_Skills/Reports/
+/Skin_Usage/AI_Skills/
+**/launcher.json
+**/launcher.json.previous
+**/launcher-python.json
+**/launcher-python.json.previous
+**/work/
+**/__pycache__/
+**/*.py[cod]
+**/*.log
+**/*.lnk
+**/*.lnk.previous
+.env
+.env.*
+!.env.example
+
+# Local results are retained verbatim
+**/*_TEST_RESULTS.md
+**/TEST_RESULTS.md
+**/test_result*/
+**/test_results*/
+**/Test_Results/

@@ -1,0 +1,12 @@
+AI illustration design reference.
+Final selected asset: left-side scenery only. The original chat.png remains the foreground picture and is not replaced.
+The earlier symmetric panorama candidate is not used.
+
+Use case: background outpainting, LEFT EXTENSION TILE ONLY.
+The attached image is the approved central/right wallpaper. It will remain unchanged in the app. Generate ONLY the NEW scenery that would continue immediately to the LEFT of its left edge. Do NOT include or redraw the central character, clock or props. The output is a separate left-side extension piece, which will be displayed beside the untouched original.
+
+Match the reference's refined anime background-painting style, ancient stone terrace, rose vines, balustrades, distant European-style city, mountains, purple-crimson dusk sky and warm sunset light arriving from the RIGHT. There must be NO additional sun in this left-only tile. Match the reference horizon height (about 56–60 percent down the image), railing level, floor perspective and shadow direction. Keep the terrace floor at the lower part, with subtle warm reflections. Add clear believable architecture and distant scenery, not blur, mirror fill, stretched pixels or a dark solid band.
+
+At the RIGHT EDGE of this tile, continue the cut-off rose-covered stone pillar and terrace details at the original image's far LEFT edge so that the two areas can join. A very narrow seam overlap of that original far-left stone/rose scenery is acceptable; no part of the central character or clock may appear. Keep the newly invented left-side composition balanced and naturally darker than the low sunset on the original right. No people, silhouettes, clocks, weapons, text, watermarks, frames or UI.
+
+Output portrait 2:3, native 1024x1536 or higher. It must be high-resolution clear scenery because it may fill the extra 296px of width exposed by collapsing the sidebar. Full opaque artwork, no transparency and no baked black overlay. The app applies 50% black over the complete wallpaper.

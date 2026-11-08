@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Skin"
+  short_description: "Install and manage local Codex Skins"
+  default_prompt: "Use $codex-skin-usage to install or switch a Codex Desktop Skin with my chosen network mode."

@@ -1,0 +1,4 @@
+Target: one complete seamless 2:1 desktop wallpaper. Preserve the approved source scene in the right three quarters and extend the same outdoor terrace, sky, skyline, balustrade and reflective floor toward the left. Preserve Kurumi's face, hair, heterochromia, full pose, both authentic weapons, hands, separated legs and shoes, black-red dress, large golden clock and right-horizon sunset.
+Continue the original rose-covered column coherently. Do not duplicate the column, mirror sections, introduce a vertical seam, add another character or clock, paint UI/text, bake a black overlay, or add blurred side panels.
+
+Asset: assets/chat-panorama.png. Actual dimensions: 1774x887. Use one full scene with a separate runtime overlay; inspect scaling for the intended viewport.

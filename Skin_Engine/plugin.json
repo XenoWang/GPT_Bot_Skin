@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "codex-appearance",
+  "version": "0.1.0",
+  "description": "管理独立文件夹主题包与本地桌面外观模块。原生界面加载器需要单独接入。"
+}

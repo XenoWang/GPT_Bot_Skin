@@ -1,0 +1,3 @@
+# Only required by the unchanged installed skill-creator validator.
+# Install into the task's work/appearance-validation-deps, not global Python.
+PyYAML==6.0.3

@@ -1,0 +1,10 @@
+AI illustration design reference.
+Separate split-layout portrait derived from the approved merged portrait.
+The original merged portrait is preserved unchanged.
+Runtime additionally permits a limited crop of empty space above the protected head boundary, within the protected subject bounds.
+
+Use case: precise-object-edit.
+Create a second portrait asset from this exact approved illustration for a shorter sidebar area.
+Make ONLY an UPPER-ALIGNED CROP of the existing image: keep the entire original width and the top two-thirds of the original height, approximately the region x=0..724, y=0..1448 from the 724x2172 input. The result should be a 1:2 vertical image. Preserve the top edge and all content from the canopy and sky down through Kurumi's skirt and upper legs. Remove the lower leg/shoe/ground portion at the BOTTOM. Do not crop the top.
+Preserve Kurumi's existing face, expression, dark hair, uniform, pose, hands, body shape, school courtyard, dusk lighting, blue-violet colors and original art style. This is a crop adaptation, not a new character illustration. Do not redesign, repaint details, move the character, zoom her down to fit full body, add new background or stretch the artwork. No mask, blur, text or border.
+The original tall full-body file is kept separately for the merged sidebar; this output is specifically the shorter split-sidebar image. Requested output 724x1448 or higher native-resolution 1:2 preserving the exact same composition crop.

@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "id": "kurumi-twilight",
+  "name": "狂三暮光",
+  "description": "校服侧栏与黄昏灵装主区；黑色蒙层分别为70%和50%。",
+  "regions": {
+    "titlebar": {
+      "enabled": true,
+      "style": {},
+      "gradient": {
+        "angle": 90,
+        "stops": [
+          {
+            "color": "#1E0710",
+            "at": 0
+          },
+          {
+            "color": "#410819",
+            "at": 0.48
+          },
+          {
+            "color": "#0D060A",
+            "at": 1
+          }
+        ]
+      },
+      "ornament": {
+        "pattern": "image",
+        "asset": "assets/botanical-vine-horizontal.png",
+        "orientation": "horizontal",
+        "opacity": 0.65,
+        "scale": 1
+      }
+    },
+    "navigation": {
+      "enabled": true,
+      "style": {},
+      "gradient": {
+        "angle": 180,
+        "stops": [
+          {
+            "color": "#1E0710",
+            "at": 0
+          },
+          {
+            "color": "#410819",
+            "at": 0.48
+          },
+          {
+            "color": "#0D060A",
+            "at": 1
+          }
+        ]
+      },
+      "ornament": {
+        "pattern": "image",
+        "asset": "assets/botanical-vine-vertical.png",
+        "orientation": "vertical",
+        "opacity": 0.65,
+        "scale": 1
+      }
+    },
+    "sidebar": {
+      "enabled": true,
+      "background": {
+        "asset": "assets/sidebar.png",
+        "blackOverlay": 0.7,
+        "subject": [
+          0.15193370165745856,
+          0.10359116022099447,
+          0.835635359116022,
+          0.9668508287292817
+        ],
+        "fit": "cover-top",
+        "maxScale": 1,
+        "blurFill": false,
+        "cropTop": 0.04
+      }
+    },
+    "sidebarRows": {
+      "enabled": false,
+      "style": {}
+    },
+    "chatHeader": {
+      "enabled": false,
+      "style": {}
+    },
+    "chat": {
+      "enabled": true,
+      "background": {
+        "asset": "assets/chat-panorama.png",
+        "blackOverlay": 0.5,
+        "subject": [
+          0.49,
+          0.005,
+          0.76,
+          0.97
+        ],
+        "fit": "cover",
+        "maxScale": 1.2,
+        "blurFill": false
+      }
+    },
+    "userMessages": {
+      "enabled": true,
+      "style": {
+        "surface": "#A71032",
+        "surfaceOpacity": 0.7,
+        "border": "#FFFFFF",
+        "borderWidth": 1
+      }
+    },
+    "assistantMessages": {
+      "enabled": false,
+      "style": {}
+    },
+    "toolCards": {
+      "enabled": false,
+      "style": {}
+    },
+    "composer": {
+      "enabled": true,
+      "style": {
+        "surface": "#000000",
+        "surfaceOpacity": 1
+      }
+    },
+    "attachments": {
+      "enabled": false,
+      "style": {}
+    },
+    "codeBlocks": {
+      "enabled": true,
+      "style": {
+        "surface": "#050509",
+        "surfaceOpacity": 0.7,
+        "border": "#C29B52",
+        "borderOpacity": 0.55,
+        "borderWidth": 1
+      }
+    },
+    "tables": {
+      "enabled": false,
+      "style": {}
+    },
+    "rightPanel": {
+      "enabled": true,
+      "style": {
+        "surface": "#16080E",
+        "surfaceOpacity": 1
+      },
+      "gradient": {
+        "angle": 180,
+        "stops": [
+          {
+            "color": "#2A0812",
+            "at": 0
+          },
+          {
+            "color": "#16080E",
+            "at": 0.55
+          },
+          {
+            "color": "#090609",
+            "at": 1
+          }
+        ]
+      }
+    },
+    "bottomPanel": {
+      "enabled": false,
+      "style": {}
+    },
+    "tabs": {
+      "enabled": false,
+      "style": {}
+    },
+    "menus": {
+      "enabled": true,
+      "style": {
+        "surface": "#13090D",
+        "surfaceOpacity": 0.96,
+        "border": "#C29B52",
+        "borderOpacity": 0.45,
+        "borderWidth": 1
+      }
+    },
+    "dialogs": {
+      "enabled": true,
+      "style": {
+        "surface": "#16090F",
+        "surfaceOpacity": 0.96,
+        "border": "#C29B52",
+        "borderOpacity": 0.45,
+        "borderWidth": 1
+      }
+    },
+    "settings": {
+      "enabled": true,
+      "style": {
+        "surface": "#19080F",
+        "surfaceOpacity": 0.72,
+        "border": "#C29B52",
+        "borderOpacity": 0.3
+      }
+    },
+    "buttons": {
+      "enabled": false,
+      "style": {}
+    },
+    "inputs": {
+      "enabled": true,
+      "style": {
+        "surface": "#13090D",
+        "surfaceOpacity": 0.85
+      }
+    },
+    "tooltips": {
+      "enabled": true,
+      "style": {
+        "surface": "#10080B",
+        "surfaceOpacity": 0.94,
+        "border": "#C29B52",
+        "borderOpacity": 0.45,
+        "borderWidth": 1
+      }
+    },
+    "scrollbars": {
+      "enabled": false,
+      "style": {}
+    },
+    "changeSummary": {
+      "enabled": true,
+      "style": {
+        "surface": "#050509",
+        "surfaceOpacity": 0.25,
+        "border": "#C29B52",
+        "borderOpacity": 0.45,
+        "borderWidth": 1,
+        "shadow": "none"
+      }
+    },
+    "pageHeaders": {
+      "enabled": true,
+      "style": {
+        "surface": "#1E0710",
+        "surfaceOpacity": 0.68,
+        "border": "#C29B52",
+        "borderOpacity": 0.25
+      }
+    },
+    "pageCards": {
+      "enabled": true,
+      "style": {
+        "surface": "#19080F",
+        "surfaceOpacity": 0.58,
+        "border": "#C29B52",
+        "borderOpacity": 0.25
+      }
+    },
+    "questions": {
+      "enabled": true,
+      "style": {
+        "surface": "#16090F",
+        "surfaceOpacity": 0.9,
+        "border": "#C29B52",
+        "borderOpacity": 0.45,
+        "borderWidth": 1
+      }
+    },
+    "profileActivity": {
+      "enabled": true,
+      "style": {
+        "surface": "#050509",
+        "surfaceOpacity": 0.7,
+        "border": "#C29B52",
+        "borderOpacity": 0.45,
+        "borderWidth": 1,
+        "radius": 16,
+        "padding": 16
+      }
+    }
+  },
+  "sidebarLayout": {
+    "mode": "split",
+    "header": {
+      "asset": "assets/header-weapons.png",
+      "blackOverlay": 0.5,
+      "subject": [
+        0.14,
+        0.1,
+        0.985,
+        0.93
+      ],
+      "fit": "cover",
+      "maxScale": 1,
+      "blurFill": false
+    },
+    "divider": {
+      "color": "#8791a3",
+      "opacity": 0.5,
+      "width": 1,
+      "inset": 12
+    },
+    "body": {
+      "asset": "assets/sidebar-split.png",
+      "blackOverlay": 0.7,
+      "subject": [
+        0.16,
+        0.16,
+        0.86,
+        0.99
+      ],
+      "fit": "cover-top",
+      "cropTop": 0.08,
+      "maxScale": 1,
+      "blurFill": false
+    }
+  },
+  "hover": {
+    "surface": "#A71032",
+    "surfaceOpacity": 0.6
+  },
+  "chatLayout": {
+    "mode": "panorama"
+  }
+}

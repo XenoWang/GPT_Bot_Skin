@@ -1,0 +1,308 @@
+{
+  "version": "26.1103.4239.0",
+  "verification": "Native surfaces inspected on official 26.1103.4239.0; see validation records for coverage.",
+  "gate": "[data-app-shell-frame],main.main-surface",
+  "regions": {
+    "titlebar": [
+      ".ApplicationMenuTopBar-SLuX8q"
+    ],
+    "navigation": [
+      "[data-app-navigation-rail]"
+    ],
+    "sidebar": [
+      "[data-sidebar-navigation-root]"
+    ],
+    "sidebarRows": [
+      "[data-sidebar-cycle-item]"
+    ],
+    "chatHeader": [
+      "[data-app-shell-main-titlebar]"
+    ],
+    "chat": [
+      "[data-app-shell-main-surface='default']",
+      "main.main-surface"
+    ],
+    "userMessages": [
+      "[data-user-message-bubble]",
+      ".messaging-embedded .message-row.self div.message-bubble"
+    ],
+    "assistantMessages": [
+      "[data-markdown-text-style=\"assistant-message\"]:not(:empty)"
+    ],
+    "toolCards": [
+      "[data-tool-call]"
+    ],
+    "composer": [
+      "[data-composer-surface-variant]:not([data-composer-utility-bar-variant='home'])",
+      "[data-composer-utility-bar-variant='home'] > [data-composer-body]"
+    ],
+    "attachments": [
+      ".composer-attachment-surface"
+    ],
+    "codeBlocks": [
+      "[data-app-shell-main-surface] [data-code-block]",
+      "[data-app-shell-main-surface] [data-markdown-text-style] pre:not([data-code-block] pre)"
+    ],
+    "tables": [
+      "[data-app-shell-main-surface] table"
+    ],
+    "rightPanel": [
+      "aside[data-app-shell-focus-area='right-panel']"
+    ],
+    "bottomPanel": [
+      "[data-app-shell-focus-area='bottom-panel']"
+    ],
+    "tabs": [
+      "[data-app-shell-tabs]"
+    ],
+    "menus": [
+      "[role='menu']",
+      "[role='listbox']",
+      "div[role='presentation'].bg-surface-elevated-secondary.shadow-lg",
+      "[data-slot='popover-content'] > .pointer-events-auto.bg-surface-elevated-secondary.shadow-xl-stronger",
+      ".suggestionMenu-EeXWU_"
+    ],
+    "dialogs": [
+      "[role='dialog']:not([data-slot='popover-content']:has(> .bg-surface-elevated-secondary.shadow-xl-stronger))",
+      "[role=\"alertdialog\"]",
+      "dialog"
+    ],
+    "settings": [
+      "[data-app-shell-main-surface] [class~='group/settings'] .rounded-2xl.border",
+      "[data-app-shell-main-surface] [class~='group/settings'] .rounded-2xl.overflow-hidden.ring-1"
+    ],
+    "buttons": [
+      "button"
+    ],
+    "inputs": [
+      "[role='dialog'] .bg-primary-soft.border",
+      "[data-app-shell-main-surface] [class~='group/settings'] .bg-primary-soft.border",
+      "[data-app-shell-frame] .bg-page-search",
+      "[role='dialog'] .bg-page-search",
+      "[data-app-shell-main-surface] [class~='group/settings'] button[aria-haspopup]",
+      "[role='dialog']:not([data-slot='popover-content']) button[aria-haspopup]"
+    ],
+    "tooltips": [
+      "[role='tooltip']"
+    ],
+    "scrollbars": [
+      "[data-role='messages-scroll']",
+      "[data-sidebar-navigation-root]"
+    ],
+    "changeSummary": [
+      ".bg-surface-elevated-secondary:has(> [data-above-composer-fixed-content-portal])",
+      "div:has(> [class~='group/turn-diff-header'])"
+    ],
+    "pageHeaders": [
+      "[data-app-shell-main-surface] .shell-yWQKe6[data-sticky]",
+      "[data-app-shell-main-surface] [class~='bg-surface/80']:has([data-app-shell-header-toolbar])"
+    ],
+    "pageCards": [
+      "[data-app-shell-main-surface] [data-new-slate-layout] .mx-auto.min-h-full.bg-surface",
+      "[data-app-shell-main-surface] aside.bg-surface.border-primary-outline",
+      "[data-app-shell-main-surface] [data-new-slate-layout] .shadow-card",
+      "[data-app-shell-main-surface] .card-Zug7_a",
+      "[data-composer-utility-rail]",
+      "[data-app-shell-main-surface] .showcaseEmptyState-WrrpWI"
+    ],
+    "questions": [
+      "[data-codex-composer-request-navigation]"
+    ],
+    "profileActivity": [
+      "[data-app-shell-main-surface] section[class~='group/profile-section']:has(> [style*='--profile-usage-level-0'])"
+    ]
+  },
+  "sidebarHeaderSelector": ".header-LjJHnp",
+  "managerDock": {
+    "rail": "[data-app-navigation-rail]",
+    "footer": ":scope > .relative.shrink-0.w-9",
+    "reference": "[data-sidebar-destination='builtin:home']"
+  },
+  "unconfirmedRegions": [
+    "toolCards"
+  ],
+  "transparentSurfaces": {
+    "chat": [
+      "[data-role='messages-scroll']",
+      ".conversation-viewport",
+      ".messaging-root.messaging-embedded",
+      ".thread-pane",
+      ".background-uNUrfY.pointer-events-none",
+      "[data-thread-scroll-footer]",
+      ".flex.h-full.min-h-0.flex-col.bg-surface",
+      ".flex.h-full.min-h-0.flex-col[class~='electron:bg-surface']",
+      ".MainContentTopFade-T6W4RS",
+      "[class~='group/settings'] .bg-surface.sticky"
+    ],
+    "sidebar": [
+      "[data-slate-sidebar-content]"
+    ],
+    "rightPanel": [
+      "[data-app-shell-compact-page-gutter]",
+      ".bg-surface",
+      "file-tree-container"
+    ],
+    "changeSummary": [
+      "[class~='group/turn-diff-file-row'] > span > button"
+    ],
+    "pageCards": [
+      ":scope > .absolute.inset-0.bg-surface-elevated"
+    ],
+    "codeBlocks": [
+      ":scope > .ActionBar-KWWAct"
+    ],
+    "questions": [
+      ".bg-surface",
+      ".bg-surface-elevated-secondary",
+      ".bg-surface-secondary"
+    ],
+    "inputs": [
+      ".bg-primary-soft",
+      ".bg-primary-soft-alpha",
+      ".bg-page-search"
+    ]
+  },
+  "hoverInteractive": ":is(button,a[href],[role='button'],[role='menuitem'],[role='menuitemcheckbox'],[role='menuitemradio'],[role='tab'],[role='option'],[data-sidebar-cycle-item])",
+  "hoverTargets": [
+    "[data-app-shell-frame] :is(button,a[href],[role='button'],[role='menuitem'],[role='menuitemcheckbox'],[role='menuitemradio'],[role='tab'],[role='option'],[data-sidebar-cycle-item])",
+    "[role=\"menu\"] :is(button,a[href],[role='button'],[role='menuitem'],[role='menuitemcheckbox'],[role='menuitemradio'],[role='tab'],[role='option'],[data-sidebar-cycle-item])",
+    "[role=\"dialog\"] :is(button,a[href],[role='button'],[role='menuitem'],[role='menuitemcheckbox'],[role='menuitemradio'],[role='tab'],[role='option'],[data-sidebar-cycle-item])",
+    "[data-app-shell-focus-area=\"right-panel\"] :is(button,a[href],[role='button'],[role='menuitem'],[role='menuitemcheckbox'],[role='menuitemradio'],[role='tab'],[role='option'],[data-sidebar-cycle-item])",
+    "[data-codex-appearance~='menus'] :is(button,a[href],[role='button'],[role='menuitem'],[role='menuitemcheckbox'],[role='menuitemradio'],[role='tab'],[role='option'],[data-sidebar-cycle-item])",
+    "[data-codex-composer-request-navigation] :is(button,[role='radio'],[role='checkbox'])"
+  ],
+  "hoverScrollbars": [
+    "[data-app-shell-frame] *::-webkit-scrollbar-thumb"
+  ],
+  "nativeComponents": {
+    "rightPanel": [
+      {
+        "selector": "file-tree-container",
+        "surfaceVars": [
+          "--color-surface",
+          "--trees-bg-override"
+        ],
+        "hoverVars": [
+          "--trees-bg-muted-override"
+        ],
+        "transparentForGradient": true
+      }
+    ],
+    "changeSummary": [
+      {
+        "selector": "[class*='--codex-diffs-surface-override:']",
+        "surfaceVars": [
+          "--codex-diffs-surface-override"
+        ]
+      }
+    ],
+    "menus": [
+      {
+        "selector": "[class*='--suggestion-menu-header-background']",
+        "surfaceVars": [
+          "--suggestion-menu-header-background"
+        ]
+      }
+    ]
+  },
+  "gradientBackplates": {
+    "navigation": "[data-app-shell-left-panel-appearance]:has([data-codex-appearance~='navigation'])"
+  },
+  "profileAvatarSlot": "[data-disabled][data-radix-collection-item] [data-menu-row-content] > [data-leading-icon-slot]:has(> img.rounded-full.size-5)",
+  "observedAttributes": [
+    "class",
+    "data-app-shell-sidebar-open",
+    "data-app-shell-trailing-sidebar-visible",
+    "data-app-shell-responsive-sidebar",
+    "data-composer-utility-bar-variant",
+    "data-composer-surface-variant",
+    "data-app-shell-page-sidebar",
+    "data-slate-sidebar-peeking",
+    "data-app-shell-main-content-top-fade"
+  ],
+  "chatLayoutState": {
+    "frame": "[data-app-shell-frame]",
+    "rail": "[data-app-navigation-rail]",
+    "sidebar": "[data-sidebar-navigation-root]",
+    "leftOpen": "data-app-shell-sidebar-open",
+    "rightOpen": "data-app-shell-trailing-sidebar-visible",
+    "responsive": "data-app-shell-responsive-sidebar",
+    "defaultSidebarWidth": 296,
+    "pageSidebar": "data-app-shell-page-sidebar"
+  },
+  "titlebarGap": {
+    "scope": "[data-app-shell-frame]",
+    "references": [
+      "[data-app-shell-main-surface]",
+      "[data-app-navigation-rail]"
+    ],
+    "maxGap": 32
+  },
+  "transparentPseudoSurfaces": {
+    "pageHeaders": [
+      "::before"
+    ]
+  },
+  "hoverPseudoTargets": [
+    "[data-app-shell-frame] [data-project-row]:hover::before",
+    "[data-app-shell-frame] [data-project-row]:hover::after"
+  ],
+  "transcriptClips": [
+    {
+      "scope": ".thread-scroll-container",
+      "content": ":scope > [class~='[container-name:thread-content]']",
+      "composer": "[data-composer-surface-variant]",
+      "topFade": {
+        "scope": "[data-app-shell-main-surface]",
+        "selector": "[data-app-shell-main-content-top-fade='visible'] .MainContentTopFade-T6W4RS"
+      }
+    },
+    {
+      "scope": ".messaging-embedded .conversation-viewport",
+      "content": ".messages-scroll > .message-list",
+      "composer": "[data-composer-surface-variant]",
+      "topFade": {
+        "scope": "[data-app-shell-main-surface]",
+        "selector": "[data-app-shell-main-content-top-fade='visible'] .MainContentTopFade-T6W4RS"
+      },
+      "composerScope": ".messaging-embedded:has([data-composer-surface-variant])"
+    },
+    {
+      "scope": ".scrollbar-stable.overflow-y-auto:has([class~='group/settings'])",
+      "content": "[class~='group/settings'] .bg-surface.sticky ~ *",
+      "composer": ":scope > [data-codex-composer]",
+      "topFade": {
+        "scope": "[data-app-shell-main-surface]",
+        "selector": "[class~='group/settings'] .bg-surface.sticky",
+        "measure": "after"
+      }
+    },
+    {
+      "scope": ":is(.thread-scroll-container [data-code-block],.messaging-embedded .message-list [data-code-block])",
+      "content": "[data-code-block-source]",
+      "composer": ":scope > [data-codex-composer]",
+      "excludeWithin": "[data-composer-surface-variant],[data-codex-composer]",
+      "globalScroll": true,
+      "topFade": {
+        "scope": "[data-code-block]",
+        "selector": ".ActionBar-KWWAct.sticky",
+        "measure": "edge"
+      }
+    }
+  ],
+  "clearSurfaceImages": [
+    "codeBlocks",
+    "questions"
+  ],
+  "activeTargets": [
+    ".suggestionMenu-EeXWU_ [data-list-navigation-item].bg-primary-ghost-hover"
+  ],
+  "outermostRegions": [
+    "inputs"
+  ],
+  "transparentPseudoTargets": {
+    "chat": [
+      "[class~='group/settings'] .bg-surface.sticky::after"
+    ]
+  }
+}

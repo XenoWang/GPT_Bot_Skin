@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "my-skin",
+  "name": "My Skin",
+  "regions": {
+    "composer": {
+      "enabled": true,
+      "style": {
+        "surface": "#09060B",
+        "surfaceOpacity": 1
+      }
+    },
+    "userMessages": {
+      "enabled": true,
+      "style": {
+        "surface": "#57203A",
+        "surfaceOpacity": 0.7,
+        "border": "#FFFFFF",
+        "borderWidth": 1
+      }
+    }
+  }
+}

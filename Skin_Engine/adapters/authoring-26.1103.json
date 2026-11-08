@@ -1,0 +1,14 @@
+{
+  "version": "26.1103.4239.0",
+  "destinations": ["home", "projects", "sites", "library", "settings"],
+  "settings": ["general", "notifications", "import", "profile", "appearance", "account", "archived-chats", "parental-controls", "trusted-contact", "voice", "storage", "agent", "personalization", "pets", "keyboard-shortcuts", "usage", "data-controls", "plugins", "passwords", "computer-use", "appshots", "browser-use", "cloud-computer", "hooks", "connections", "codex-cloud", "code-review", "git", "worktrees"],
+  "manualStates": [
+    {"id": "existing-chat", "regions": ["chat", "userMessages", "assistantMessages", "codeBlocks", "tables", "attachments", "changeSummary"], "reason": "Visit an existing appropriate conversation without submitting messages"},
+    {"id": "dot", "regions": ["chat", "composer", "userMessages"], "reason": "Open the actual Dot surface when available"},
+    {"id": "sidebar-hover", "regions": ["sidebar", "navigation"], "reason": "Observe the native hover-peek state"},
+    {"id": "menus", "regions": ["menus", "tooltips", "buttons"], "reason": "Open safe native menus; do not activate business actions"},
+    {"id": "dialogs", "regions": ["dialogs", "inputs", "buttons"], "reason": "Open a safe native dialog without submitting it"},
+    {"id": "questions", "regions": ["questions"], "reason": "Requires an already available question card; never create a task to trigger one"},
+    {"id": "drawer", "regions": ["rightPanel", "bottomPanel", "tabs"], "reason": "Open a native drawer; external contents remain excluded"}
+  ]
+}

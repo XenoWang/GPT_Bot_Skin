@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Skin Creator"
+  short_description: "Create and adapt native Codex Skins"
+  default_prompt: "Use $codex-skin-creator to create or adapt a Codex Desktop Skin and review UI coverage."

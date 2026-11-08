@@ -1,0 +1,10 @@
+.local/
+AI_Skills/
+work/
+runtime/work/
+runtime/launcher.json
+runtime/launcher.json.previous
+runtime/launcher-python.json
+runtime/launcher-python.json.previous
+__pycache__/
+*.log

@@ -2,6 +2,7 @@
 from pathlib import Path
 import subprocess
 import sys
+sys.dont_write_bytecode = True
 
 if sys.version_info < (3, 10):
     raise SystemExit('Python 3.10+ is required / 需要 Python 3.10 或更新版本')

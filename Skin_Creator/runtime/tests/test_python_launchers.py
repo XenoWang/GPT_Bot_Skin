@@ -22,7 +22,7 @@ import zlib
 from test_creator import two_color_png
 
 ENGINE = Path(__file__).resolve().parents[1]
-REPO = ENGINE.parent
+REPO = ENGINE.parent.parent
 sys.path.insert(0, str(ENGINE / 'scripts'))
 import python_launcher as launcher
 from python_host import WindowsHost, HostError, assert_owner, filetime_text, reject_links

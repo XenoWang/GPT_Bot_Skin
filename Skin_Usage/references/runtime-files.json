@@ -9,7 +9,7 @@
     "scripts/Start-CodexTheme.ps1": "ced9d84c90018c30bab16b230f2ff9950d37ca9d03f849be50fc4695f2a5d289",
     "scripts/Restore-CodexAppearance.ps1": "d256a20dbd61cbafbb1abbd62779575063594de3f1acbda7309742e599ce249d",
     "scripts/Configure-CodexSkin.ps1": "8f3c9dd07d6290151a512c493db6f4c31d5d698537ba9cc8aeb9967f96d43b59",
-    "scripts/Skin-LaunchConfig.ps1": "96318930bfb2750f2df9fb2b457d3a6cac98b5b3d681acd57470152366aec5da",
+    "scripts/Skin-LaunchConfig.ps1": "04c1e052483bc3db4ef80ccc64c6c0bb4a68dcdd9d751b17abf800bf0fd19988",
     "scripts/Assert-CdpOwner.ps1": "d580f4b52d9d7cca172d59833f6109b08335292949b6b697925faf7eb7d23070",
     "scripts/cdp-companion.mjs": "0fc8d6f50efe7e9f6617a424a66a7a11fd93515da3c71584672146038e155749",
     "scripts/cdp-transport.mjs": "6ca88da3252d04c4fa4a98aff2174a8dc848026d8bcd4c9042a600b6ec12f739",
@@ -31,6 +31,9 @@
     "scripts/region-capabilities.mjs": "cc31a294090ef56b1a0580098368484085bbfa84054247830ea7fa5332cc2acf",
     "scripts/host-tools.mjs": "069c4fd6aa67f11fd5493f4bec5942375bf09b520a7580940de517d1683c3eae",
     "scripts/python_host.py": "d592dc4a28c42d517caa7458e328d856d6844cf661d7de2d50d208c7342ec9dd",
-    "scripts/python_launcher.py": "754e072a52db378d179504b2a1f5961ec7eb48966b271dd36a4a99c7766fd4fd"
+    "scripts/python_launcher.py": "1c60dc81732c9b5b1ed3a0f4144044a17921deb0215e660f266c667ed46f4cc9",
+    "scripts/release_package.py": "48a571ac5e1623a972cb68d9e8d3eee6bb43cd5af2280ed349423753b5a9c400",
+    "runtime-profile.json": "93373f18766df2cef53aaf6896bb63352d60411b068e49f78fb3cbb69dc232a7",
+    "assets/codex-launcher.ico": "7c4bd139c305ac4de332c12cf4a3b10184715990afcf48b49f2478fbd1b0e19e"
   }
 }

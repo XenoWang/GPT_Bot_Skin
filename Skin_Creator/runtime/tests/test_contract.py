@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
+REPO=ROOT.parent.parent
 WORK=ROOT/'work'/'appearance-tests'
 spec=importlib.util.spec_from_file_location('patcher',ROOT/'scripts'/'build_native_patch.py')
 patcher=importlib.util.module_from_spec(spec)
@@ -75,11 +76,11 @@ class Contracts(unittest.TestCase):
         if not validator.is_file():self.fail('BLOCKED: installed skill validator unavailable')
         env=dict(os.environ)
         if importlib.util.find_spec('yaml') is None:
-            dependencies=WORK.parent/'appearance-validation-deps'
+            dependencies=ROOT/'tests'/'_deps'
             if not (dependencies/'yaml'/'__init__.py').is_file():
                 self.fail('BLOCKED: prepare the isolated tests/requirements.txt dependencies first')
             env['PYTHONPATH']=str(dependencies)
-        for skill in [ROOT/'skills'/'manage-themes',ROOT.parent/'Skin_Creator',ROOT.parent/'Skin_Usage']:
+        for skill in [ROOT/'skills'/'manage-themes',REPO/'Skin_Creator',REPO/'Skin_Usage']:
             subprocess.run([sys.executable,'-X','utf8',str(validator),str(skill)],env=env,check=True)
 
     def test_cdp_contracts_and_launcher_syntax(self):
@@ -112,13 +113,13 @@ class Contracts(unittest.TestCase):
         subprocess.run(['node','--test','tests/controls.test.mjs'],cwd=ROOT,env=env,check=True)
 
     def test_read_only_ui_inventory_and_entrypoints(self):
-        env={**os.environ,'CODEX_THEME_TEST_ROOT':str(self.folder),'CODEX_REPOSITORY_ROOT':str(ROOT.parent)}
+        env={**os.environ,'CODEX_THEME_TEST_ROOT':str(self.folder),'CODEX_REPOSITORY_ROOT':str(REPO)}
         subprocess.run(['node','--check','scripts/inspect-ui-regions.mjs'],cwd=ROOT,check=True)
         subprocess.run(['node','--test','tests/inventory.test.mjs'],cwd=ROOT,env=env,check=True)
         expected=(ROOT/'Inspect-UI.ps1').read_bytes()
         for folder in ['Skin_Creator','Skin_Usage']:
-            self.assertEqual((ROOT.parent/folder/'Inspect-UI.ps1').read_bytes(),expected)
-        command=r'''$failures=@(); foreach($folder in @('Skin_Engine','Skin_Creator','Skin_Usage')) { $tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $env:CODEX_REPOSITORY_ROOT ($folder+'\Inspect-UI.ps1')),[ref]$tokens,[ref]$errors)|Out-Null; $failures+=@($errors) }; if($failures.Count){$failures|ForEach-Object {Write-Error $_.Message}; exit 1}'''
+            self.assertEqual((REPO/folder/'Inspect-UI.ps1').read_bytes(),expected)
+        command=r'''$failures=@(); foreach($folder in @('Skin_Creator/runtime','Skin_Creator','Skin_Usage')) { $tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $env:CODEX_REPOSITORY_ROOT ($folder+'\Inspect-UI.ps1')),[ref]$tokens,[ref]$errors)|Out-Null; $failures+=@($errors) }; if($failures.Count){$failures|ForEach-Object {Write-Error $_.Message}; exit 1}'''
         subprocess.run(['powershell.exe','-NoProfile','-Command',command],env=env,check=True)
 
     def test_portable_config_modes_without_launching_client(self):
@@ -146,15 +147,23 @@ class Contracts(unittest.TestCase):
 
     def test_delivery_is_self_contained_and_matches_frozen_source(self):
         import hashlib
-        usage=ROOT.parent/'Skin_Usage'
+        usage=REPO/'Skin_Usage'
         receipt=json.loads((usage/'references/runtime-files.json').read_text(encoding='utf-8'))['files']
         self.assertGreater(len(receipt),20)
         for name,digest in receipt.items():
             rel=Path(name);self.assertFalse(rel.is_absolute());self.assertNotIn('..',rel.parts)
             self.assertEqual(hashlib.sha256((usage/'runtime'/rel).read_bytes()).hexdigest(),digest,name)
-            self.assertEqual((usage/'runtime'/rel).read_bytes(),(ROOT/rel).read_bytes(),name)
+            if name=='runtime-profile.json':
+                self.assertEqual(json.loads((usage/'runtime'/rel).read_text(encoding='utf-8')),{'schemaVersion':1,'role':'usage'})
+                self.assertEqual(json.loads((ROOT/rel).read_text(encoding='utf-8')),{'schemaVersion':1,'role':'creator'})
+            else:
+                self.assertEqual((usage/'runtime'/rel).read_bytes(),(ROOT/rel).read_bytes(),name)
         forbidden={'session.json','status.json','launcher.json','launcher-python.json','launcher-python.json.previous','python-companion.json','build_native_patch.py','app.asar'}
-        self.assertFalse(forbidden.intersection(p.name for p in (usage/'runtime').rglob('*') if p.is_file()))
+        # Local working state is allowed; the independently checked ZIP must exclude it.
+        release=json.loads((usage/'release-manifest.json').read_text(encoding='utf-8'))['files']
+        self.assertFalse(forbidden.intersection(Path(name).name for name in release))
+        for name in receipt:
+            self.assertIn('runtime/'+name,release)
         for kind in ['Start','Restore','Configure']:
             self.assertTrue((usage/(kind+'-Skin.cmd')).is_file())
         # Mandatory release snapshot uses repository-relative paths, never personal history.
@@ -164,8 +173,8 @@ class Contracts(unittest.TestCase):
             rel=Path(name)
             self.assertFalse(rel.is_absolute())
             self.assertNotIn('..',rel.parts)
-            target=(ROOT.parent/rel).resolve()
-            self.assertTrue(target.is_relative_to(ROOT.parent.resolve()))
+            target=(REPO/rel).resolve()
+            self.assertTrue(target.is_relative_to(REPO.resolve()))
             self.assertEqual(hashlib.sha256(target.read_bytes()).hexdigest(),digest,name)
 
 if __name__=='__main__':unittest.main()

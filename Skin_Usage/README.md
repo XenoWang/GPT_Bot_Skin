@@ -1,22 +1,26 @@
 # Codex Skin
 
+本目录包含完整运行文件，可单独发布。在本目录运行 `python Build-Zip.py --output ../Skin_Usage.zip`，按本包 `release-manifest.json` 排除私人配置、状态、日志和缓存。不要无筛选压缩已使用的工作目录。
+
+This standalone package includes its own runtime. Run `python Build-Zip.py --output ../Skin_Usage.zip` from this folder to package the reviewed public allowlist. Private state and developer artifacts are excluded. No sibling package is required.
+
 ## 附加 Python 启动链路 / Additional Python launch route
 
-原有 CMD／PowerShell 入口继续保留。另可从项目根使用 Python 3.10+：
+本包可独立运行，无需同级的其他包。原有 CMD／PowerShell 入口继续保留。以下 Python 3.10+ 命令从解压后的 Usage 目录运行：
 
 ```text
-python Skin_Usage/Start-Skin.py --help
-python Skin_Usage/Start-Skin.py configure --proxy-mode direct
-python Skin_Usage/Start-Skin.py
+python Start-Skin.py --help
+python Start-Skin.py configure --proxy-mode direct
+python Start-Skin.py
 ```
 
 以上配置示例选择直连；如果需要本机 HTTP 代理，改用：
 
 ```text
-python Skin_Usage/Start-Skin.py configure --proxy-mode proxy --proxy-server 127.0.0.1:7897
+python Start-Skin.py configure --proxy-mode proxy --proxy-server 127.0.0.1:7897
 ```
 
-启动前可运行 `python Skin_Usage/Start-Skin.py doctor` 只检查依赖与官方包身份。退出皮肤层使用 `python Skin_Usage/Start-Skin.py restore`；关闭调试端口仍需正常退出客户端。已有普通/旧链路客户端运行时，请保存输入并正常退出；`--wait-for-exit` 只等待，不强制关闭或接管旧会话。
+启动前可运行 `python Start-Skin.py doctor` 只检查依赖与官方包身份。退出皮肤层使用 `python Start-Skin.py restore`；关闭调试端口仍需正常退出客户端。已有普通/旧链路客户端运行时，请保存输入并正常退出；`--wait-for-exit` 只等待，不强制关闭或接管旧会话。
 
 新链路内部不调用 PowerShell，仍需要 Node.js 22+ 和系统允许运行的官方客户端。它不能绕过程序白名单或其他系统策略，不自动修改执行策略或安装依赖。新配置保存在 `runtime/launcher-python.json`，默认状态目录为当前用户本地应用数据目录下的 `CodexSkinPython`。没有新配置时只借用原配置的代理/直连及端口偏好，不修改原 `launcher.json`、旧会话或快捷方式。配置及状态不随包发布。必要时可显式指定 `--state-root`；不要把两条链路指向同一个状态目录。
 
@@ -85,7 +89,7 @@ Ask GPT to read this folder's `SKILL.md`, check official Codex Desktop and Node 
 
 ## 旧版本与区域盘点 / Older clients and UI inventory
 
-**不提供向下版本兼容。** 若当前客户端比适配器目标版本更旧，请让Codex先运行本目录 `Inspect-UI.ps1`，逐页采集实际可用模块和状态，向你展示可配置区域及缺口，然后按[盘点流程](../Skin_Creator/references/ui-inventory.md)调整适配器并验证。不要把脚本视为一键兼容工具。
+**不提供向下版本兼容。** 若当前客户端比适配器目标版本更旧，请让Codex先运行本目录 `Inspect-UI.ps1`，逐页采集实际可用模块和状态，向你展示可配置区域及缺口，然后按[盘点流程](references/ui-inventory.md)调整适配器并验证。不要把脚本视为一键兼容工具。
 
 在本目录执行 `powershell.exe -NoProfile -File .\Inspect-UI.ps1 -Label current`。默认读取受管启动配置；必要时通过 `-StatePath` 指定当前会话文件。报告与区域清单输出在被忽略的work目录。未打开的页面、弹窗和关闭的Shadow DOM不会被计为已检查。
 

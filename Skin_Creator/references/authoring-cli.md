@@ -1,6 +1,6 @@
 # 创作命令 / Authoring commands
 
-所有命令从项目根运行，使用 `node Skin_Creator/scripts/creator.mjs <command> --session Skin_Creator/work/<draft>`。也可用 `Create-Skin.ps1` 包装入口。CLI 摘要供代理读取；面向用户展示编号图、图片和自然语言选择，不让用户理解内部键。状态写入采用锁及原子替换；中断后继续同一会话，不删除原证据。
+所有命令从解压后的 Creator 包目录运行，使用 `node scripts/creator.mjs <command> --session work/<draft>`。也可用 `Create-Skin.ps1` 包装入口。CLI 摘要供代理读取；面向用户展示编号图、图片和自然语言选择，不让用户理解内部键。状态写入采用锁及原子替换；中断后继续同一会话，不删除原证据。
 
 All commands share the prefix above. The CLI returns concise agent-facing summaries. Show users the generated diagram, images and readable choices. Sessions use a lock and atomic replacement; resume the same folder rather than discarding evidence.
 

@@ -1,9 +1,7 @@
 /.local/
 /AI_Skills/
-/Skin_Engine/AI_Skills/
-/Skin_Engine/work/
-/Skin_Engine/dist/
 /Skin_Creator/AI_Skills/Reports/
+/Skin_Creator/runtime/tests/_deps/
 /Skin_Usage/AI_Skills/
 **/launcher.json
 **/launcher.json.previous

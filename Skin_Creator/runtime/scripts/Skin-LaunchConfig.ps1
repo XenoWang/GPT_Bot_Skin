@@ -1,4 +1,15 @@
 ﻿# Pure configuration helpers; sourcing this file launches nothing.
+function Get-SkinRuntimeRole {
+ param([Parameter(Mandatory=$true)][string]$Root)
+ $runtimeProfilePath=Join-Path $Root 'runtime-profile.json'
+ if(!(Test-Path -LiteralPath $runtimeProfilePath)){return 'usage'}
+ $item=Get-Item -LiteralPath $runtimeProfilePath
+ if($item.Length -gt 32768 -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Invalid runtime profile'}
+ $data=Get-Content -LiteralPath $runtimeProfilePath -Raw -Encoding UTF8|ConvertFrom-Json
+ if($null -eq $data -or $data -is [array] -or ($data.schemaVersion -isnot [int] -and $data.schemaVersion -isnot [long]) -or $data.schemaVersion -ne 1 -or $data.role -notin @('creator','usage')){throw 'Invalid runtime profile'}
+ foreach($key in $data.PSObject.Properties.Name){if($key -notin @('schemaVersion','role')){throw 'Unknown runtime profile field'}}
+ return $data.role
+}
 function Get-SkinLaunchConfig {
  param([Parameter(Mandatory=$true)][string]$Root,[int]$Port=0,[string]$ProxyMode='',[string]$ProxyServer='',[string]$StateRoot='')
  $configPath=Join-Path $Root 'launcher.json'
@@ -20,7 +31,7 @@ function Get-SkinLaunchConfig {
  }else{$ProxyServer=''}
  if($Port -lt 1024 -or $Port -gt 65535){throw 'Invalid CDP port'}
  if(!$StateRoot){$StateRoot=$config.stateRoot}
- if(!$StateRoot){$StateRoot=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'CodexSkin'}
+ if(!$StateRoot){$folder=if((Get-SkinRuntimeRole -Root $Root) -eq 'creator'){'CodexSkinCreator'}else{'CodexSkin'};$StateRoot=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) $folder}
  if(![IO.Path]::IsPathRooted($StateRoot)){$StateRoot=Join-Path $Root $StateRoot}
  $StateRoot=[IO.Path]::GetFullPath($StateRoot)
  [pscustomobject]@{port=$Port;proxyMode=$ProxyMode;proxyServer=$ProxyServer;stateRoot=$StateRoot}

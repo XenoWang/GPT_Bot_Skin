@@ -1,7 +1,7 @@
 .local/
 AI_Skills/
 work/
-dist/
+tests/_deps/
 launcher.json
 launcher.json.previous
 launcher-python.json

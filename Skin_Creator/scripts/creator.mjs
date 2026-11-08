@@ -7,14 +7,14 @@ import {randomUUID} from 'node:crypto';
 import {createSession,selectLayout,setSource,setPrompt,requiredSlots,backgroundRevision,completeRevision,buildManifest,choosePalette,confirm,invalidate,summary,digest} from './workflow.mjs';
 import {cropPlan,paletteCandidates,hex} from './image-math.mjs';
 import {writeCatalog} from './catalog.mjs';
-import {inventory} from '../../Skin_Engine/scripts/coverage-runner.mjs';
-import {makeCatalog} from '../../Skin_Engine/scripts/inspect-ui-regions.mjs';
-import {managedPage} from '../../Skin_Engine/scripts/managed-page.mjs';
-import {installAuthoring} from '../../Skin_Engine/renderer/authoring.mjs';
-import {validatePack,requiredAssets} from '../../Skin_Engine/renderer/core.mjs';
+import {inventory} from '../runtime/scripts/coverage-runner.mjs';
+import {makeCatalog} from '../runtime/scripts/inspect-ui-regions.mjs';
+import {managedPage} from '../runtime/scripts/managed-page.mjs';
+import {installAuthoring} from '../runtime/renderer/authoring.mjs';
+import {validatePack,requiredAssets} from '../runtime/renderer/core.mjs';
 import {loadLocales,selectLanguage,localeBundle,translate,localizeError} from './localization.mjs';
-import {pythonBackend,localeCommand} from '../../Skin_Engine/scripts/host-tools.mjs';
-const HERE=path.dirname(fileURLToPath(import.meta.url)),ROOT=path.resolve(HERE,'../..'),exec=promisify(execFile);
+import {pythonBackend,localeCommand} from '../runtime/scripts/host-tools.mjs';
+const HERE=path.dirname(fileURLToPath(import.meta.url)),ROOT=path.resolve(HERE,'..'),exec=promisify(execFile);
 let currentLocale;
 async function systemLocale(){try{if(process.platform==='win32'){const command=localeCommand(),result=await exec(command.file,command.args,{windowsHide:true,timeout:10000,maxBuffer:4096});return result.stdout.trim();}}catch(error){if(process.env.CODEX_SKIN_HOST_BACKEND==='python')throw error;}return Intl.DateTimeFormat().resolvedOptions().locale;}
 const inside=(root,file)=>{const relative=path.relative(root,file);return relative===''||!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative);};
@@ -26,8 +26,8 @@ export async function atomicJSON(file,value){
 }
 async function sessionDirectory(value){
  if(!value)throw new Error('--session is required (an ignored local directory)');
- const directory=path.resolve(value),allowed=[path.join(ROOT,'.local','creator'),path.join(ROOT,'Skin_Creator','work')];
- if(!allowed.some(root=>inside(root,directory)))throw new Error('Keep sessions under .local/creator/ or Skin_Creator/work/');
+ const directory=path.resolve(value),allowed=[path.join(ROOT,'.local','creator'),path.join(ROOT,'work')];
+ if(!allowed.some(root=>inside(root,directory)))throw new Error('Keep sessions under the package .local/creator/ or work/ directory');
  for(let current=directory;inside(ROOT,current);current=path.dirname(current)){if(await exists(current)&&(await lstat(current)).isSymbolicLink())throw new Error('Session path must not use symlinks/junctions');if(current===ROOT)break;}
  await mkdir(directory,{recursive:true});return directory;
 }
@@ -93,10 +93,10 @@ export async function run(argv=process.argv.slice(2)){
   let result;
   switch(args.command){
    case 'start':case 'inventory':case 'capture':{
-    if(!args.state)throw new Error('Inventory requires --state; start the intended managed runtime through Usage first');
+    if(!args.state)throw new Error('Inventory requires --state; start the bundled managed runtime first');
     const before=session.inventory?.binding,measurement=JSON.stringify(session.inventory?.measurement);
     const data=await inventory({statePath:args.state,targetId:args.target,previous:session.inventory,manualState:args.command==='capture'?args.slot:null,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}});
-    session.inventory=data.report;const labels=Object.fromEntries(await Promise.all(['en','zh-CN'].map(async code=>[code,JSON.parse(await readFile(path.join(ROOT,'Skin_Engine','locales',code+'.json'),'utf8'))])));
+    session.inventory=data.report;const labels=Object.fromEntries(await Promise.all(['en','zh-CN'].map(async code=>[code,JSON.parse(await readFile(path.join(ROOT,'runtime','locales',code+'.json'),'utf8'))])));
     session.catalog=makeCatalog(data.report,labels);session.foregrounds=foregroundSamples(data.report);
     if(before!==data.report.binding||measurement!==JSON.stringify(data.report.measurement)){invalidate(session,'prompt');session.selection=null;}
     const catalog=await writeCatalog(path.join(directory,'catalog'),data.report,session.catalog,currentLocale);
@@ -160,7 +160,7 @@ export async function run(argv=process.argv.slice(2)){
     if(manifest.length>128*1024||images.length+1>100||manifest.length+images.reduce((n,[,b])=>n+b.length,0)>48*1024*1024)throw new Error('Export exceeds import limits');
     const destination=path.resolve(args.output??path.join(directory,'export',session.id));
     await rejectLinks(destination);
-    for(const protectedRoot of ['Skin_Engine/themes','Skin_Usage/runtime/themes'])if(inside(path.join(ROOT,protectedRoot),destination))throw new Error('Export to a new folder, not an installed/built-in Skin directory');
+    for(const protectedRoot of ['runtime/themes'])if(inside(path.join(ROOT,protectedRoot),destination))throw new Error('Export to a new folder, not an installed/built-in Skin directory');
     if(await exists(destination))throw new Error('Export destination already exists');
     await mkdir(path.dirname(destination),{recursive:true});await mkdir(destination);await mkdir(path.join(destination,'assets'));
     for(const [name,bytes]of images)await writeFile(path.join(destination,name),bytes,{flag:'wx'});

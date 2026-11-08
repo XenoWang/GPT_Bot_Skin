@@ -19,6 +19,16 @@ from python_host import HostError, WindowsHost, assert_owner, filetime_text, rea
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def runtime_role(root):
+    profile = Path(root) / 'runtime-profile.json'
+    if not profile.exists():
+        return 'usage'
+    value = read_json(profile)
+    if set(value) != {'schemaVersion', 'role'} or type(value['schemaVersion']) is not int or value['schemaVersion'] != 1 or value['role'] not in ('creator', 'usage'):
+        raise HostError('Invalid runtime profile')
+    return value['role']
+
+
 def atomic_bytes(path, data):
     path = reject_links(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -45,6 +55,7 @@ def save_json(path, value):
 
 def launch_config(root, *, mode=None, proxy=None, port=None, state_root=None):
     root = Path(root).resolve()
+    role = runtime_role(root)
     python_file, legacy = root / 'launcher-python.json', root / 'launcher.json'
     source = python_file if python_file.exists() else legacy
     data = read_json(source) if source.exists() else {}
@@ -69,7 +80,7 @@ def launch_config(root, *, mode=None, proxy=None, port=None, state_root=None):
         local = os.environ.get('LOCALAPPDATA')
         if not local:
             raise HostError('LOCALAPPDATA is unavailable; specify --state-root explicitly')
-        selected_state = str(Path(local) / 'CodexSkinPython')
+        selected_state = str(Path(local) / ('CodexSkinCreatorPython' if role == 'creator' else 'CodexSkinPython'))
     if not isinstance(selected_state, str):
         raise HostError('State directory must be a path string')
     state = Path(selected_state)
@@ -77,7 +88,7 @@ def launch_config(root, *, mode=None, proxy=None, port=None, state_root=None):
         state = root / state
     state = reject_links(state)
     legacy_data = read_json(legacy) if legacy.exists() else {}
-    legacy_state = legacy_data.get('stateRoot') or str(Path(os.environ.get('LOCALAPPDATA', root)) / 'CodexSkin')
+    legacy_state = legacy_data.get('stateRoot') or str(Path(os.environ.get('LOCALAPPDATA', root)) / ('CodexSkinCreator' if role == 'creator' else 'CodexSkin'))
     if not isinstance(legacy_state, str):
         raise HostError('Legacy state directory is invalid; do not overwrite it')
     legacy_path = Path(legacy_state)
@@ -101,7 +112,7 @@ def client_arguments(config):
 
 def child_environment(config=None):
     env = dict(os.environ)
-    env.update(CODEX_SKIN_HOST_BACKEND='python', CODEX_SKIN_PYTHON=str(Path(sys.executable).resolve()), NO_PROXY='127.0.0.1,localhost,::1', PYTHONUTF8='1')
+    env.update(CODEX_SKIN_HOST_BACKEND='python', CODEX_SKIN_PYTHON=str(Path(sys.executable).resolve()), NO_PROXY='127.0.0.1,localhost,::1', PYTHONUTF8='1', PYTHONDONTWRITEBYTECODE='1')
     if config:
         for key in list(env):
             if key.upper() in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY'):

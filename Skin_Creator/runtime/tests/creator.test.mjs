@@ -4,15 +4,15 @@ import {mkdtemp,mkdir,readFile,writeFile,readdir,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {cropPlan,contrast,readableSurface,paletteCandidates} from '../../Skin_Creator/scripts/image-math.mjs';
-import {createSession,selectLayout,setSource,setPrompt,confirm,choosePalette,buildManifest,backgroundRevision,completeRevision,invalidate,requiredSlots} from '../../Skin_Creator/scripts/workflow.mjs';
-import {loadLocales,selectLanguage,localeBundle,translate,localizeError,validateLocale} from '../../Skin_Creator/scripts/localization.mjs';
-import {writeCatalog} from '../../Skin_Creator/scripts/catalog.mjs';
-import {run} from '../../Skin_Creator/scripts/creator.mjs';
+import {cropPlan,contrast,readableSurface,paletteCandidates} from '../../scripts/image-math.mjs';
+import {createSession,selectLayout,setSource,setPrompt,confirm,choosePalette,buildManifest,backgroundRevision,completeRevision,invalidate,requiredSlots} from '../../scripts/workflow.mjs';
+import {loadLocales,selectLanguage,localeBundle,translate,localizeError,validateLocale} from '../../scripts/localization.mjs';
+import {writeCatalog} from '../../scripts/catalog.mjs';
+import {run} from '../../scripts/creator.mjs';
 import {makeCatalog} from '../scripts/inspect-ui-regions.mjs';
 import {coverageBlockers,navigateKnown,navigationReached,sidebarState,saveNavigation,restoreNavigation} from '../scripts/coverage-runner.mjs';
 import {validateManifest,requiredAssets,scenePlacement,sharedSceneFit,opacityOptions,withOpacityOverrides} from '../renderer/core.mjs';
-const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-8,`${actual} versus ${expected}`);
 async function temporary(t,parent=process.env.CODEX_THEME_TEST_ROOT){assert.ok(parent,'Isolated test directory is required');await mkdir(parent,{recursive:true});const directory=await mkdtemp(path.join(parent,'creator-'));assert.equal(path.dirname(directory),path.resolve(parent));t.after(()=>rm(directory,{recursive:true,force:true}));return directory;}
 function sessionFixture(mode='unified'){

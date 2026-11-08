@@ -3,15 +3,16 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+sys.dont_write_bytecode = True
 
 if sys.version_info < (3, 10):
     raise SystemExit('Python 3.10+ is required / 需要 Python 3.10 或更新版本')
 
 CREATOR = Path(__file__).resolve().parent
-ENGINE = CREATOR.parent / 'Skin_Engine'
-if not (ENGINE / 'scripts/python_launcher.py').is_file():
-    raise SystemExit('Keep Skin_Engine next to Skin_Creator / 请保留相邻的 Skin_Engine 目录')
-sys.path.insert(0, str(ENGINE / 'scripts'))
+RUNTIME = CREATOR / 'runtime'
+if not (RUNTIME / 'scripts/python_launcher.py').is_file():
+    raise SystemExit('The bundled Creator runtime is missing / 创作包内缺少运行文件')
+sys.path.insert(0, str(RUNTIME / 'scripts'))
 from python_launcher import child_environment, node_executable, system_language
 from python_host import HostError
 

@@ -56,7 +56,7 @@
     "error.generic": "当前步骤未完成：{detail}",
     "catalog.examples": "皮肤形式示例（借用实测布局的概念示意）",
     "catalog.candidates": "待归类结构（尚不属于可配置区域）",
-    "python.help": "附加 Python 创作入口（需要 Python 3.10+、Node.js 22+ 和 Windows）。\n从项目根运行：\npython Skin_Creator/Create-Skin.py start --session Skin_Creator/work/my-skin --state <Python会话的session.json> --id my-skin --name \"My Skin\"\n其他子命令与 creator.mjs 相同。请先通过 Skin_Usage/Start-Skin.py 建立独立受管会话；原启动入口保留。",
+    "python.help": "独立 Creator（需要 Python 3.10+、Node.js 22+ 和 Windows）。\n从解压后的 Creator 目录运行：\npython Start-Skin.py configure --proxy-mode direct\npython Start-Skin.py\npython Create-Skin.py start --session work/my-skin --state <受管会话的session.json> --id my-skin --name \"My Skin\"\n以上为直连示例，需要代理时选择 proxy。包内已包含所需运行服务，无需同级的其他包。",
     "python.error": "Python 创作入口未完成：{detail}"
   },
   "errors": {
@@ -89,7 +89,9 @@
     "Another creator command owns this session": "另一个创作命令正在使用此会话。",
     "Record the actual user confirmation; this command cannot create consent": "只能记录用户实际作出的确认；该命令本身不能产生授权。",
     "Missing foreground color samples for *": "以下区域缺少前景色采样：{detail}",
-    "Image decoder unavailable or invalid image. Provide PNG/JPEG; WebP requires an installed compatible Windows decoder.": "图片无效或缺少解码器。请使用 PNG/JPEG；WebP 需要本机兼容解码器。"
+    "Image decoder unavailable or invalid image. Provide PNG/JPEG; WebP requires an installed compatible Windows decoder.": "图片无效或缺少解码器。请使用 PNG/JPEG；WebP 需要本机兼容解码器。",
+    "Keep sessions under the package .local/creator/ or work/ directory": "会话请保存在本包的 .local/creator/ 或 work/ 目录中。",
+    "Inventory requires --state; start the bundled managed runtime first": "盘点需要 --state；请先通过包内启动入口建立受管会话。"
   },
   "regions": {
     "titlebar": "顶部栏",

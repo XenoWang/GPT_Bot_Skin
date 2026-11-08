@@ -56,14 +56,13 @@
     "error.generic": "The step could not finish: {detail}",
     "catalog.examples": "Skin forms (concept examples using measured layout)",
     "catalog.candidates": "Unclassified structures (not configurable regions yet)",
-    "python.help": "Additional Python Creator route (Python 3.10+, Node.js 22+, Windows).\nRun from the project root:\npython Skin_Creator/Create-Skin.py start --session Skin_Creator/work/my-skin --state <Python-session.json> --id my-skin --name \"My Skin\"\nOther commands use the same arguments as creator.mjs. Use Usage/Start-Skin.py for the separate managed Python session. The original entrypoints are preserved.",
+    "python.help": "Standalone Creator (Python 3.10+, Node.js 22+, Windows).\nFrom the extracted Creator folder:\npython Start-Skin.py configure --proxy-mode direct\npython Start-Skin.py\npython Create-Skin.py start --session work/my-skin --state <managed-session.json> --id my-skin --name \"My Skin\"\nChoose proxy instead of direct when needed. All runtime services are included in this package; no sibling package is required.",
     "python.error": "Python Creator could not finish: {detail}"
   },
   "errors": {
     "*": "The step could not finish: {detail}",
     "Invalid measured viewport": "Invalid measured viewport",
     "--session is required (an ignored local directory)": "--session is required (an ignored local directory)",
-    "Keep sessions under .local/creator/ or Skin_Creator/work/": "Keep sessions under .local/creator/ or Skin_Creator/work/",
     "Session path must not use symlinks/junctions": "Session path must not use symlinks/junctions",
     "Output path must not use symlinks/junctions": "Output path must not use symlinks/junctions",
     "Another creator command owns this session": "Another creator command owns this session",
@@ -79,7 +78,6 @@
     "Update the managed Skin runtime before previewing": "Update the managed Skin runtime before previewing",
     "Run start first": "Run start first",
     "Unsupported creator session version": "Unsupported creator session version",
-    "Inventory requires --state; start the intended managed runtime through Usage first": "Inventory requires --state; start the intended managed runtime through Usage first",
     "Choose an image source first": "Choose an image source first",
     "User must confirm the current prompt before generation/ingestion": "User must confirm the current prompt before generation/ingestion",
     "Unknown asset slot": "Unknown asset slot",
@@ -154,7 +152,9 @@
     "Requested state was not structurally observed": "Requested state was not structurally observed",
     "Inventory paused: leave the editable field without changing its content": "Inventory paused: leave the editable field without changing its content",
     "Session file too large": "Session file too large",
-    "No unambiguous verified native window; select a target explicitly": "No unambiguous verified native window; select a target explicitly"
+    "No unambiguous verified native window; select a target explicitly": "No unambiguous verified native window; select a target explicitly",
+    "Keep sessions under the package .local/creator/ or work/ directory": "Keep sessions under the package .local/creator/ or work/ directory",
+    "Inventory requires --state; start the bundled managed runtime first": "Inventory requires --state; start the bundled managed runtime first"
   },
   "regions": {
     "titlebar": "Top bar",

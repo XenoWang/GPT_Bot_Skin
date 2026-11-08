@@ -5,19 +5,19 @@ description: Create unified or separate-image Codex Desktop Skins through measur
 
 # Codex Skin creator
 
-Use the maintained CLI in `scripts/creator.mjs`; do not reconstruct its geometry, state machine or pack validation in chat. It requires sibling `../Skin_Engine/`, Node 22+ and Windows PowerShell. Sessions belong in ignored `work/`. Preserve installed Skins, approved originals and personal configuration.
+Use the maintained CLI in `scripts/creator.mjs`; do not reconstruct its geometry, state machine or pack validation in chat. All runtime services are bundled in `runtime/`. The original route requires Node 22+ and Windows PowerShell. Sessions belong in ignored `work/`. Preserve installed Skins, approved originals and personal configuration.
 
-An additional Python 3.10+ route is available through `Create-Skin.py`, using the same CLI arguments. Select it when the user wants Python or PowerShell is unavailable. That route uses Python Windows host/image services, still requires Node 22+, and uses a separate managed session created by `Skin_Usage/Start-Skin.py`. Do not replace the user's existing launch route or configuration. OS policies still apply; do not modify them or silently fall back to PowerShell. See the [README](README.md).
+An additional Python 3.10+ route is available through `Create-Skin.py`, using the same CLI arguments. Select it when the user wants Python or PowerShell is unavailable. That route uses Python Windows host/image services, still requires Node 22+, and uses a separate managed session created by this package's `Start-Skin.py`. Do not replace the user's existing launch route or configuration. OS policies still apply; do not modify them or silently fall back to PowerShell. See the [README](README.md).
 
 ## Start and resume
 
 For a new creation, **start with inventory by default**:
 
 ```powershell
-node Skin_Creator/scripts/creator.mjs start --session Skin_Creator/work/my-skin --state "<managed-session.json>" --id my-skin --name "My Skin"
+node scripts/creator.mjs start --session work/my-skin --state "<managed-session.json>" --id my-skin --name "My Skin"
 ```
 
-Resolve the intended managed session through the existing Usage configuration; do not guess a port, read credentials, change network settings or force-close Codex. An unconfigured client needs the existing Usage setup. Never run a real inventory merely while implementing or testing this Skill.
+Run commands from the extracted package folder. Resolve the intended managed session through this package's configuration or an explicitly supplied compatible session; do not guess a port, read credentials, change network settings or force-close Codex. An unconfigured client can use this package's own Configure/Start entrypoints. No sibling package is required. Never run a real inventory merely while implementing or testing this Skill.
 
 For continuation, run `status` with the same `--session`; reuse confirmed choices. Read [the command reference](references/authoring-cli.md) for the current step only. The CLI automatically visits mapped safe navigation entries and sidebar states, measures the maximized canvas, generates `catalog/index.html` plus numbered SVG layouts, and records every gap. It does not manufacture chats, dialogs or question cards to improve coverage. Use permitted UI tools for remaining available states, then `capture`; do not claim unvisited states passed.
 

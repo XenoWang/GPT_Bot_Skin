@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installAuthoring} from '../renderer/authoring.mjs';
 import {validatePack} from '../renderer/core.mjs';
-import {loadLocales,localeBundle} from '../../Skin_Creator/scripts/localization.mjs';
+import {loadLocales,localeBundle} from '../../scripts/localization.mjs';
 const locales=await loadLocales(),locale=localeBundle(locales,'zh-CN');
 const pack=id=>({manifest:{schemaVersion:1,id,name:id,regions:{composer:{enabled:true,style:{surface:'#101010'}}}},assets:{}});
 class Node{

@@ -14,7 +14,7 @@ Keep placeholders in message translations. Error maps support exact keys, prefix
 
 Creator asks Chinese/English once, preselected from the system locale, and stores that explicit choice in the private creation session. Temporary previews use it without changing persistent preferences. The regular Usage panel retains its existing auto-follow-app option and independently selectable language; creating a Skin does not change the OS or Codex language.
 
-Place one UTF-8 JSON file in `runtime/locales/` (creator: locate the usage engine's locales directory). Copy `en.json`, rename to `<locale>.json`, update `locale` and `name`, then translate values. `name` is the language's own readable name. `direction` may be `ltr` or `rtl`. `menuLabels` contains the native app's translated File-menu label, used only when the app doesn't publish a document language.
+Place one UTF-8 JSON file in `runtime/locales/`. Copy `en.json`, rename to `<locale>.json`, update `locale` and `name`, then translate values. `name` is the language's own readable name. `direction` may be `ltr` or `rtl`. `menuLabels` contains the native app's translated File-menu label, used only when the app doesn't publish a document language.
 
 ```json
 {

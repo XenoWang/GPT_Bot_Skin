@@ -1,48 +1,55 @@
 # Codex Skin Creator
 
-新增 Python 入口；原 Node／PowerShell 入口保留：
-
-```text
-python Skin_Creator/Create-Skin.py --help
-python Skin_Creator/Create-Skin.py start --session Skin_Creator/work/my-skin --state "<Python链路的session.json>" --id my-skin --name "My Skin"
-```
-
-Python 入口透传相同创作命令，并选用不依赖 PowerShell 的身份核验、系统语言和 Windows 图片后端。需要 Python 3.10+、Node.js 22+、相邻 Engine 和由 Usage Python 入口建立的受管会话；不会自动替换旧会话或启动客户端。入口文案也来自 `locales/`。PNG/JPEG 可直接处理；其他格式以系统解码能力为准，不自动安装解码器。
-
-An additional `Create-Skin.py` entrypoint forwards the same authoring commands and selects the Python host/image backend. Existing Node/PowerShell entrypoints remain unchanged. Requires Python 3.10+, Node 22+, sibling Engine, and a managed session established by the Usage Python route. It does not start the client, replace legacy sessions, install codecs, or bypass application execution restrictions. Entrypoint messages also use the locale files.
-
 [中文](#中文) · [English](#english)
 
 ## 中文
 
-创建一体式或分开式 Skin。先运行 [SKILL.md](SKILL.md) 的盘点入口，再选择形式、语言和素材来源；确认背景效果后才处理气泡、输入框、菜单和弹窗，整体确认后导出。
+这是可单独发布的创作包。区域盘点、配置校验、临时预览、图片处理及启动服务均在本目录内，无需下载同级的其他包。入口：[SKILL.md](SKILL.md)。
 
-**一体式**使用一张横图和共享场景坐标；**分开式**使用完整横向主图及按需求提供的独立侧栏图。侧栏内部是否再分段是另一个选项。主图尺寸按最大化且侧栏收起后的完整场景计算，避免后续补景拼接。
+创作流程：盘点及编号图 → 一体式/分开式与语言 → 给图或确认提示词后生成 → 主体保护裁剪 → 背景预览确认 → 配色多选及控件适配 → 整体确认后导出。已有选择可续用，常用窗口化/最大化定位预计算，固定尺寸复用，新尺寸补算一次并缓存。
 
-脚本负责可用入口自动盘点、覆盖记录、编号图表、图片尺寸检查与主体保护裁剪、提色、配色、会话续做和导出。未知页面或不能安全触发的弹窗保留缺口；不会伪报全区域完成。现有图片、内置狂三皮肤和个人偏好不会被创作预览覆盖。
+### 从本包启动
 
-运行需要 Node.js 22+、Windows PowerShell、相邻的 `Skin_Engine/` 与已配置的受管客户端。图片处理使用 Windows 自带图像解码器；PNG/JPEG 可作为通用输入，WebP 需本机可用的兼容解码器，缺失时明确报错。无自动依赖安装。生图使用当前环境可用的内置 GPT 工具，或用户选择并配置的 MCP；提示词先确认。
+需要 Windows、Node.js 22+。可选 Python 3.10+ 链路，内部不调用 PowerShell。以下命令在解压后的 Creator 目录执行：
 
-从项目根开始：
-
-```powershell
-node Skin_Creator/scripts/creator.mjs start --session Skin_Creator/work/my-skin --state "<managed-session.json>" --id my-skin --name "My Skin"
+```text
+python Start-Skin.py --help
+python Start-Skin.py configure --proxy-mode direct
+python Start-Skin.py
 ```
 
-命令、JSON 输入及续做方式见[创作命令参考](references/authoring-cli.md)。`Inspect-UI.ps1` 仍是单次只读诊断入口；新创作默认使用包含覆盖编排的 `start`。图表和所有私有状态保存在被忽略的会话目录。
+上面是直连示例；使用本机 HTTP 代理时，以 `configure --proxy-mode proxy --proxy-server 127.0.0.1:7897` 配置自己的地址。默认 Python 会话位于用户本地应用数据目录的 `CodexSkinCreatorPython/session.json`；实际位置以启动输出为准。
 
-新创作输出主题格式 v2，需要更新后的 Engine/Usage；旧 v1 狂三等主题不修改。客户端版本仍需匹配适配器，不承诺向下兼容。离线测试与真实创作验收分别记录。
+保留原 PowerShell/CMD 链路：`Configure-Skin.cmd`、`Start-Skin.cmd`、`Restore-Skin.cmd`；默认会话目录为 `CodexSkinCreator`。已有其他受管会话时，可在相同后端链路中显式传入其 session 文件，避免重复启动助手。普通客户端正在运行时先保存输入并正常退出；不会强制关闭、改变系统代理或绕过执行限制。
 
-Creator 自身的中文/英文文案在 `locales/zh-CN.json` 和 `locales/en.json`。协作者复制英文配置、修改语言标识与翻译即可添加语言，无需改源码；缺失内容回退英文。窗口化及最大化定位在创作时预计算，固定窗口复用；新尺寸才补算一次并缓存。
+### 开始创作
+
+```text
+python Create-Skin.py start --session work/my-skin --state "<受管会话的session.json>" --id my-skin --name "My Skin"
+```
+
+原 Node 入口 `node scripts/creator.mjs` 与 `Create-Skin.ps1` 保留。详细命令见[创作参考](references/authoring-cli.md)。`Inspect-UI.ps1` 用于单次结构诊断，创作默认用 `start` 完成覆盖编排。受保护、未访问、未映射的状态明确列为缺口。
+
+一体式使用一张完整横图与共享场景坐标；分开式使用完整主图和独立侧栏图，侧栏可进一步分段。主图按最大化且侧栏收起后的完整场景测量。图片尺寸不足或裁剪会伤及受保护细节时返回冲突，不偷偷放大、拼条或模糊补边。PNG/JPEG 可用，其他格式取决于本机解码器。生成提示词先确认，再调用已选的可用 GPT/MCP 工具。
+
+`locales/en.json` 和 `locales/zh-CN.json` 是 Creator 文案配置；复制并翻译配置即可添加语言，缺键回退英文。运行面板翻译另在 `runtime/locales/`。参见[翻译说明](references/localization.md)。现有主题、动态透明度、侧栏布局和语言偏好保留。
+
+### 自行打包
+
+```text
+python Build-Zip.py --output ../Skin_Creator.zip
+```
+
+只打包 `release-manifest.json` 中的已审阅文件。工作目录、个人配置、缓存、日志和开发测试不进入 ZIP；公开经验指南会保留。不要直接无筛选压缩整个已使用目录。新增语言或维护代码后，需审阅并更新发布清单。创建主题的数据包使用 `export`，不使用此技能打包命令。
 
 ## English
 
-Create unified or separate-image Skins using [SKILL.md](SKILL.md). Inventory first, choose the form/language and image source, approve the background preview, then style controls and approve the complete result before export.
+A standalone authoring package: inventory, validation, previews, image processing and managed launch services are bundled locally. No sibling package is required. Start with [SKILL.md](SKILL.md).
 
-A unified Skin uses one landscape image in shared window coordinates. A separate Skin uses a complete maximized main scene plus independent sidebar assets; splitting the sidebar internally is a separate choice. Scripts handle safe mapped navigation, explicit coverage gaps, numbered geometry diagrams, image size/crop constraints, palettes, resumable state and data-only export. Native previews do not overwrite installed Skins or personal preferences.
+Requires Windows and Node 22+. The optional Python 3.10+ route does not invoke PowerShell internally. Run the commands above from the extracted Creator folder; choose direct or your own local HTTP proxy. Python and PowerShell routes default to separate `CodexSkinCreatorPython` and `CodexSkinCreator` state folders in local application data. Use the session path reported by the launcher. Reuse an explicitly selected compatible managed session instead of launching a second assistant. The original CMD/PowerShell entrypoints remain available.
 
-Requires Node 22+, Windows PowerShell, sibling `Skin_Engine/` and a configured managed client. Image processing uses the installed Windows decoder: PNG/JPEG are the portable choices; WebP needs a compatible installed decoder. No dependency is installed automatically. Generation uses the available built-in GPT tool or the user's configured MCP provider, only after prompt approval.
+Authoring proceeds from measured diagrams through form/language, image source, approved generation prompts, protected crops, background acceptance, multiselect colors, complete acceptance and data-only export. Unvisited/unsupported states remain explicit gaps. Normal/maximized placements are precomputed; fixed sizes reuse them. Existing Skins and their configurable preferences are preserved.
 
-Run the command above from the project root; see [the CLI reference](references/authoring-cli.md). `Inspect-UI.ps1` remains a single-capture diagnostic, while `start` orchestrates creation inventory. New output uses Skin format v2 and needs the updated runtime. Existing v1 Skins are preserved. Unsupported client versions require adaptation; offline checks are not native visual acceptance.
+Creator translations live in `locales/`; add a locale JSON file without changing source. Runtime panel translations are in `runtime/locales/`. PNG/JPEG are the portable image inputs; other formats depend on installed codecs. No automatic dependency installation or policy bypass occurs.
 
-Creator's own translations live in `locales/`. Copy `en.json`, change its locale identity and translate it to add a language without source changes. Missing keys fall back to English. Normal/maximized placements are precomputed during creation; fixed windows reuse them, and new sizes are calculated once and cached.
+Use `Build-Zip.py` to package the reviewed file allowlist, excluding private state and development artifacts. Update the release manifest only after reviewing intentional changes. This builds the Skill ZIP, not the data-only Skin exported by the authoring workflow.

@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
-import {validateManifest,SCENE_REGIONS,REGIONS,fitImage} from '../../Skin_Engine/renderer/core.mjs';
-import {coverageBlockers} from '../../Skin_Engine/scripts/coverage-runner.mjs';
+import {validateManifest,SCENE_REGIONS,REGIONS,fitImage} from '../runtime/renderer/core.mjs';
+import {coverageBlockers} from '../runtime/scripts/coverage-runner.mjs';
 import {paletteCandidates,readableSurface} from './image-math.mjs';
 export const digest=value=>createHash('sha256').update(typeof value==='string'||Buffer.isBuffer(value)?value:JSON.stringify(value)).digest('hex');
 export function createSession(id,name,systemLanguage='en'){

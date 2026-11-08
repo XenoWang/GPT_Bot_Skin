@@ -5,7 +5,7 @@ description: Install, launch, switch, restore, or troubleshoot local Codex Deskt
 
 # Codex Skin usage
 
-Use the bundled runtime in `runtime/`; resolve paths from this Skill folder. Read [README.md](README.md) for first-run commands, proxy/direct options, switching and restoration. Read [compatibility.md](references/compatibility.md) for current verification boundaries.
+Use the bundled runtime in `runtime/`; resolve paths from this Skill folder. No sibling package is required. Read [README.md](README.md) for first-run commands, proxy/direct options, switching and restoration. Read [compatibility.md](references/compatibility.md) for current verification boundaries.
 
 If the user requests Python or cannot use PowerShell, use the additional `Start-Skin.py` route documented in README. It has explicit configure/start/restore/doctor actions and separate configuration/state. Existing CMD/PowerShell commands stay available; do not change the user's old launcher, shortcut or running session. Python and Node plus the official client must still be allowed by OS policy. Identity-check failure stops the operation, never enables weaker checks or a hidden PowerShell fallback.
 
@@ -18,4 +18,6 @@ If the user requests Python or cannot use PowerShell, use the additional `Start-
 
 For a visual gap, inspect the actual visible node, inner surfaces and pseudo-elements before updating the versioned adapter. Keep selector changes scoped; do not recolor all gray pixels. Translate new locales using [localization.md](references/localization.md). Report exact checks and unverified behavior; honor the user's test approval workflow when modifying this package.
 
-For an older client, backward compatibility is unsupported by default. Run `Inspect-UI.ps1`, collect relevant pages/states with UI tools, and use the local catalog to plan adapter changes. Never treat an unobserved region as absent or a matched selector as a visual pass. The creator Skill must present selectable regions before authoring.
+For packaging, use this folder's `Build-Zip.py` and reviewed `release-manifest.json`; never zip private state indiscriminately.
+
+For an older client, backward compatibility is unsupported by default. Run `Inspect-UI.ps1`, collect relevant pages/states with UI tools, and use the local catalog to plan adapter changes. Never treat an unobserved region as absent or a matched selector as a visual pass. A separate Creator package is optional for authoring; it is not a dependency for this package's launch, use or inspection.

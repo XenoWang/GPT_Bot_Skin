@@ -9,7 +9,7 @@ import unittest
 import zlib
 
 ENGINE = Path(__file__).resolve().parents[1]
-REPO = ENGINE.parent
+REPO = ENGINE.parent.parent
 WORK = ENGINE / 'work' / 'creator-tests'
 
 

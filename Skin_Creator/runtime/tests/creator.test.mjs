@@ -110,7 +110,7 @@ test('numbered catalogs contain structural diagrams and escaped labels, not priv
 });
 test('safe navigation uses structural postconditions and refuses ambiguous or focused editing states',async t=>{
  const previous=new Map(['document','window','requestAnimationFrame','getComputedStyle'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));t.after(()=>{for(const [k,v]of previous){if(v)Object.defineProperty(globalThis,k,v);else delete globalThis[k];}});
- let clicks=0,selected=false;const node={isConnected:true,getBoundingClientRect:()=>({width:20,height:20}),getAttribute:k=>k==='aria-current'&&selected?'page':null,matches:()=>false,click(){clicks++;selected=true;}};
+ let clicks=0,selected=false;const node={isConnected:true,getBoundingClientRect:()=>({width:20,height:20}),getAttribute:k=>k==='aria-current'&&selected?'page':null,closest:()=>null,matches:()=>false,click(){clicks++;selected=true;}};
  globalThis.getComputedStyle=()=>({visibility:'visible'});
  globalThis.window={};globalThis.requestAnimationFrame=fn=>fn();globalThis.document={activeElement:{matches:()=>true},querySelectorAll:()=>[node],querySelector:()=>null};assert.equal(saveNavigation().ready,false);
  document.activeElement={matches:()=>false};assert.equal(navigationReached('destination','home'),false);assert.deepEqual(navigateKnown('destination','home'),{requested:true});assert.equal(clicks,1);assert.equal(navigationReached('destination','home'),true);

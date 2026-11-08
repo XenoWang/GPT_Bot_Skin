@@ -11,7 +11,7 @@ const bindingFor=(client,adapter,plan)=>createHash('sha256').update(JSON.stringi
 
 // Only known navigation attributes and structural state are read. No text/value/URL scraping.
 export function navigateKnown(kind,key){
- const visible=n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden';};
+ const visible=n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');};
  const query=kind==='settings'?`[data-settings-panel-slug="${key}"]`:`[data-sidebar-destination="builtin:${key}"]`;
  const nodes=[...document.querySelectorAll(query)].filter(visible);
  if(nodes.length!==1)return {requested:false,reason:'missing-or-ambiguous-entry'};
@@ -20,12 +20,12 @@ export function navigateKnown(kind,key){
 }
 export function navigationReached(kind,key){
  const query=kind==='settings'?`[data-settings-panel-slug="${key}"]`:`[data-sidebar-destination="builtin:${key}"]`;
- return [...document.querySelectorAll(query)].some(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true');});
+ return [...document.querySelectorAll(query)].some(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true');});
 }
 export function saveNavigation(){
  const active=document.activeElement;
  if(active?.matches('input,textarea,[contenteditable="true"]'))return {ready:false,reason:'editable-focused'};
- const selected=[...document.querySelectorAll('[data-sidebar-destination],[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true');});
+ const selected=[...document.querySelectorAll('[data-sidebar-destination],[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true');});
  const frame=document.querySelector('[data-app-shell-frame]');
  window.__codexCreatorNavigation={selected,active,leftOpen:frame?.getAttribute('data-app-shell-sidebar-open')};return {ready:true,restorable:selected.length>0};
 }
@@ -35,15 +35,16 @@ export function sidebarState(desired,configuredLabels){
  if(value===String(desired))return {requested:true,already:true};
  const labels=configuredLabels??['Toggle sidebar','Open sidebar','Close sidebar','切换侧栏','打开侧栏','关闭侧栏'];
  if(!Array.isArray(labels)||!labels.length||labels.some(label=>typeof label!=='string'||!label.trim()))return {requested:false,reason:'sidebar-toggle-unmapped'};
- const controls=[...document.querySelectorAll('button[aria-label]')].filter(n=>labels.includes(n.getAttribute('aria-label'))&&n.getBoundingClientRect().width>0&&!n.disabled);
+ const controls=[...document.querySelectorAll('button[aria-label]')].filter(n=>{const r=n.getBoundingClientRect();return labels.includes(n.getAttribute('aria-label'))&&r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&!n.disabled;});
  if(controls.length!==1)return {requested:false,reason:'sidebar-toggle-unmapped'};controls[0].click();return {requested:true};
 }
 export async function restoreNavigation(required=false){
+ const available=n=>{if(!n.isConnected)return false;const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');};
  const state=window.__codexCreatorNavigation;delete window.__codexCreatorNavigation;
  if(!state)return false;let restored=state.selected.length>0||!required;
- for(const n of state.selected){if(n.isConnected)n.click();else restored=false;}
+ for(const n of state.selected){if(available(n))n.click();else restored=false;}
  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
- if(required)for(const n of state.selected)if(!n.isConnected||!(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true'))restored=false;
+ if(required)for(const n of state.selected)if(!available(n)||!(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true'))restored=false;
  if(state.active?.isConnected)state.active.focus({preventScroll:true});return restored;
 }
 export function coverageBlockers(report,regions,excluded=[]){
@@ -60,15 +61,16 @@ export function navigationRoute(id,controls={}){
  return {kind:route.kind,key:route.key};
 }
 const navigationKey=route=>route.kind+':'+route.key;
+const restrictedStateReason=(id,controls)=>controls.protectedStates.includes(id)?'protected-state':controls.externalStates?.includes(id)?'external-content':null;
 export function navigationObservationMatches(row,route){
  return row?.status==='observed'&&(row.navigationKey??navigationKey(navigationRoute(row.id)))===navigationKey(route);
 }
 export function refreshNavigationEvidence(report,controls){
  for(const row of report?.coverage?.states??[]){
-  const protectedState=controls.protectedStates.includes(row.id);
+  const restriction=restrictedStateReason(row.id,controls);
   const navigation=/^(page|settings)-/.test(row.id);
-  if(row.status==='observed'&&(protectedState||navigation&&!navigationObservationMatches(row,navigationRoute(row.id,controls)))){
-   row.status='not-observed';row.reason=protectedState?'protected-state':'navigation-mapping-changed';
+  if(row.status==='observed'&&(restriction||navigation&&!navigationObservationMatches(row,navigationRoute(row.id,controls)))){
+   row.status='not-observed';row.reason=restriction??'navigation-mapping-changed';
    if(row.navigationKey)row.previousNavigationKey=row.navigationKey;
    delete row.sample;delete row.evidence;
   }
@@ -77,11 +79,11 @@ export function refreshNavigationEvidence(report,controls){
 }
 export async function authoringControls(){
  const value=JSON.parse(await readFile(path.join(ROOT,'adapters/authoring-controls-26.1103.json'),'utf8'));
- if(!value||typeof value.version!=='string'||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates))throw new Error('Invalid authoring controls configuration');
+ if(!value||typeof value.version!=='string'||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates)||value.externalStates!==undefined&&!Array.isArray(value.externalStates))throw new Error('Invalid authoring controls configuration');
  return value;
 }
 export function selectedSettingsPage(){
- const nodes=[...document.querySelectorAll('[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true');});
+ const nodes=[...document.querySelectorAll('[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true');});
  return nodes.length===1?nodes[0].getAttribute('data-settings-panel-slug'):null;
 }
 export async function captureSettings({statePath,targetId,previous,onProgress=async()=>{}},{connect=managedPage,capture=inventory}={}){
@@ -95,19 +97,28 @@ export async function captureSettings({statePath,targetId,previous,onProgress=as
  try{
   if(client.clientVersion!==controls.version||previous.clientVersion!==client.clientVersion||plan.version!==client.clientVersion)throw new Error('Re-inventory after a version change');
   if(previous.binding!==bindingFor(client,adapter,plan))throw new Error('Batch capture requires the same verified inventory window');
+  if(await page.evaluate('!!document.activeElement?.matches(\'input,textarea,[contenteditable="true"]\')'))throw new Error('Inventory paused: leave the editable field without changing its content');
   original=await page.evaluate('('+selectedSettingsPage.toString()+')()');
   if(!original||!/^[a-z][a-z0-9-]*$/.test(original))throw new Error('Open an ordinary settings page before batch capture');
-  if(controls.protectedStates.some(id=>navigationRoute(id,controls).key===original))throw new Error('Open an ordinary settings page before batch capture');
+  if([...controls.protectedStates,...(controls.externalStates??[])].some(id=>navigationRoute(id,controls).key===original))throw new Error('Open an ordinary settings page before batch capture');
+  report.coverage.settingsInterrupted=false;
   const ids=report.coverage.states.filter(row=>/^(page|settings)-/.test(row.id)&&navigationRoute(row.id,controls).kind==='settings').map(row=>row.id);
   for(const id of ids){
    const row=report.coverage.states.find(item=>item.id===id);
-   if(controls.protectedStates.includes(row.id)){row.status='not-observed';row.reason='protected-state';await remember(report);continue;}
+   const restriction=restrictedStateReason(row.id,controls);
+   if(restriction){row.status='not-observed';row.reason=restriction;delete row.sample;delete row.evidence;await remember(report);continue;}
    const route=navigationRoute(row.id,controls);
-   if(navigationObservationMatches(row,route))continue;
+   if(navigationObservationMatches(row,route)){row.reason=null;continue;}
+   row.navigationKey=navigationKey(route);
    const action=await page.evaluate('('+navigateKnown.toString()+')("settings",'+JSON.stringify(route.key)+')');
    if(!action.requested){row.status='not-observed';row.reason=action.reason;await remember(report);continue;}
    moved=true;
-   if(!await reached(route.key)){row.status='not-observed';row.reason='navigation-postcondition-missing';await remember(report);continue;}
+   if(!await reached(route.key)){
+    row.status='not-observed';row.reason='navigation-postcondition-missing';
+    const present=await page.evaluate('('+selectedSettingsPage.toString()+')()');
+    if(!present){row.reason='settings-surface-lost';report.coverage.settingsInterrupted=true;await remember(report);break;}
+    await remember(report);continue;
+   }
    const data=await capture({statePath,targetId:client.targetId,previous:report,manualState:row.id,onProgress:remember});
    report=data.report;
   }
@@ -134,14 +145,15 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
   if(manualState){
    if(!previous||previous.binding!==binding)throw new Error('Manual capture requires the same inventory session');
    report=structuredClone(previous);const row=report.coverage.states.find(s=>s.id===manualState);if(!row)throw new Error('Unknown coverage state');
-   if(controls.protectedStates.includes(manualState))throw new Error('Protected state is not inspected: '+manualState);
+   const restriction=restrictedStateReason(manualState,controls);
+   if(restriction)throw new Error((restriction==='protected-state'?'Protected state is not inspected: ':'External content is not inspected: ')+manualState);
    const sample=await capture(manualState);
    const hits=sample.regionCoverage.filter(r=>row.regions.includes(r.key)&&r.visible>0&&!r.selectorErrors.length);
    let evidence=manualState==='existing-chat'?hits.some(r=>r.key==='userMessages'||r.key==='assistantMessages'):manualState==='dot'?await page.evaluate("!!document.querySelector('.messaging-embedded .conversation-viewport')"):manualState==='sidebar-hover'?await page.evaluate("!!document.querySelector('[data-slate-sidebar-peeking=\"true\"]')"):hits.some(r=>r.key===({menus:'menus',dialogs:'dialogs',questions:'questions',drawer:'rightPanel'}[manualState]));
    if(manualState.startsWith('page-')||manualState.startsWith('settings-')){const route=navigationRoute(manualState,controls);evidence=await page.evaluate('('+navigationReached.toString()+')('+JSON.stringify(route.kind)+','+JSON.stringify(route.key)+')');if(evidence)row.navigationKey=navigationKey(route);}
    if(['sidebar-expanded','sidebar-collapsed'].includes(manualState))evidence=await page.evaluate('document.querySelector("[data-app-shell-frame]")?.getAttribute("data-app-shell-sidebar-open")==='+JSON.stringify(String(manualState==='sidebar-expanded')));
    if(!evidence||sample.truncated)throw new Error('Requested state was not structurally observed');
-   Object.assign(row,{status:'observed',sample:report.samples.length-1,evidence:'native-structure'});await onProgress(report);return {report,catalog:makeCatalog(report)};
+   Object.assign(row,{status:'observed',reason:null,sample:report.samples.length-1,evidence:'native-structure'});await onProgress(report);return {report,catalog:makeCatalog(report)};
   }
   windowControl=await windows(client,statePath);
   report.windowBackend=windowControl.backend;
@@ -157,10 +169,11 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
   const steps=[...plan.destinations.map(key=>({id:'page-'+key,kind:'destination',key,regions:['chat','navigation','sidebar','pageHeaders','pageCards','composer']})),...plan.settings.map(key=>({id:'settings-'+key,kind:'settings',key,regions:['chat','settings','inputs','pageHeaders','buttons']}))];
   for(const step of steps){
    const route=navigationRoute(step.id,controls);
-   const old=resumable&&!controls.protectedStates.includes(step.id)&&previous.coverage.states.find(s=>s.id===step.id&&navigationObservationMatches(s,route));
+   const restriction=restrictedStateReason(step.id,controls);
+   const old=resumable&&!restriction&&previous.coverage.states.find(s=>s.id===step.id&&navigationObservationMatches(s,route));
    if(old){report.coverage.states.push({...old,sample:old.sample+3,reused:true});continue;}
    const row={id:step.id,regions:step.regions,status:'not-observed',reason:'unvisited',navigationKey:navigationKey(route)};report.coverage.states.push(row);
-   if(controls.protectedStates.includes(step.id)){row.reason='protected-state';await onProgress(report);continue;}
+   if(restriction){row.reason=restriction;await onProgress(report);continue;}
    if(!saved.restorable){row.reason='original-navigation-not-restorable';await onProgress(report);continue;}
    const action=await page.evaluate('('+navigateKnown.toString()+')('+JSON.stringify(route.kind)+','+JSON.stringify(route.key)+')');
    if(action.requested){navigationMoved=true;let reached=false;for(let attempt=0;attempt<8;attempt++){await settle();if(await page.evaluate('('+navigationReached.toString()+')('+JSON.stringify(route.kind)+','+JSON.stringify(route.key)+')')){reached=true;break;}}

@@ -1,20 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {inventory,captureSettings,authoringControls,navigationRoute,navigationObservationMatches,refreshNavigationEvidence,navigationReached,saveNavigation,sidebarState} from '../scripts/coverage-runner.mjs';
+import {inventory,captureSettings,authoringControls,navigationRoute,navigationObservationMatches,refreshNavigationEvidence,navigationReached,saveNavigation,restoreNavigation,sidebarState} from '../scripts/coverage-runner.mjs';
 
-function settingsDom(){
+function settingsDom({externalProfile=false,unexpectedDeparture=false}={}){
  const ui={open:false,current:'general-settings',clicks:[],failCapture:false,failRestore:false,movedAway:false,sidebar:true,label:'Masquer le panneau'};
- const keys=['general-settings','notifications','plugins-settings','account','passwords'];
- const nodes=keys.map(key=>({key,visible:key!=='account',hidden:false,isConnected:true,
+ const keys=['general-settings','notifications','plugins-settings','account','passwords',...(externalProfile?['import','profile']:[])];
+ const nodes=keys.map(key=>({key,visible:key!=='account',hidden:false,inert:false,isConnected:true,
   getAttribute(name){if(name==='data-settings-panel-slug')return key;if(name==='aria-current')return key===ui.current||key==='account'?'page':null;return null;},
   getBoundingClientRect(){return {width:this.visible?100:0,height:this.visible?24:0};},
   matches(){return false;},
-  click(){if(ui.failRestore&&ui.movedAway&&key==='general-settings')throw new Error('synthetic restore failure');ui.clicks.push(key);ui.current=key;if(key!=='general-settings')ui.movedAway=true;},
+  closest(){return this.inert?this:null;},
+  click(){if(ui.failRestore&&ui.movedAway&&key==='general-settings')throw new Error('synthetic restore failure');ui.clicks.push(key);ui.current=key;if(key!=='general-settings')ui.movedAway=true;if(externalProfile&&key==='profile'||unexpectedDeparture&&key==='notifications')ui.open=false;},
   get textContent(){throw new Error('Settings content must not be read');},get value(){throw new Error('Settings values must not be read');}
  }));
  const frame={getAttribute:()=>String(ui.sidebar)};
- const toggle={getAttribute:name=>name==='aria-label'?ui.label:null,getBoundingClientRect:()=>({width:20,height:20}),disabled:false,click(){ui.sidebar=!ui.sidebar;}};
+ const toggle={inert:false,getAttribute:name=>name==='aria-label'?ui.label:null,getBoundingClientRect:()=>({width:20,height:20}),closest(){return this.inert?this:null;},disabled:false,click(){ui.sidebar=!ui.sidebar;}};
  const document={activeElement:null,querySelector:selector=>selector==='[data-app-shell-frame]'?frame:null,querySelectorAll(selector){
   if(selector==='button[aria-label]')return [toggle];
   if(!ui.open)return [];
@@ -24,11 +25,11 @@ function settingsDom(){
  }};
  const context=vm.createContext({document,window:{},getComputedStyle:n=>({visibility:n.hidden?'hidden':'visible'}),requestAnimationFrame:fn=>fn(0)});
  const evaluate=async expression=>{const value=await vm.runInContext(expression,context);return value===undefined?null:JSON.parse(JSON.stringify(value));};
- return {ui,nodes,evaluate};
+ return {ui,nodes,toggle,document,evaluate};
 }
 
-async function batchFixture(){
- const dom=settingsDom();let size=[1000,700],opened=0,closed=0;const reports=[];
+async function batchFixture(options={}){
+ const dom=settingsDom(options);let size=[1000,700],opened=0,closed=0;const reports=[];
  const page={async evaluate(expression){
   if(expression.includes('function captureRegions')){
    if(dom.ui.failCapture&&dom.ui.current==='notifications')throw new Error('synthetic capture interruption');
@@ -60,19 +61,21 @@ test('version configuration maps independently observed native entry names and r
 });
 
 test('changed aliases invalidate only affected observations and leave independent evidence intact',()=>{
- const report={samples:[{label:'home'},{label:'gallery'},{label:'question'}],coverage:{states:[
+ const report={samples:[{label:'home'},{label:'gallery'},{label:'question'},{label:'protected-fixture'},{label:'external-fixture'}],coverage:{states:[
   {id:'page-home',status:'observed',sample:0,evidence:'native-structure'},
   {id:'page-library',status:'observed',sample:1,evidence:'native-structure',navigationKey:'destination:images'},
   {id:'questions',status:'observed',sample:2,evidence:'native-structure'},
-  {id:'settings-passwords',status:'observed',sample:3,navigationKey:'settings:passwords'}
+  {id:'settings-passwords',status:'observed',sample:3,navigationKey:'settings:passwords'},
+  {id:'settings-profile',status:'observed',sample:4,navigationKey:'settings:profile'}
  ]}};
- const controls={navigationAliases:{'page-library':{kind:'destination',key:'updated-images'}},protectedStates:['settings-passwords']};
+ const controls={navigationAliases:{'page-library':{kind:'destination',key:'updated-images'}},protectedStates:['settings-passwords'],externalStates:['settings-profile']};
  const samples=structuredClone(report.samples);
  refreshNavigationEvidence(report,controls);
  assert.equal(report.coverage.states[0].status,'observed');assert.equal(report.coverage.states[0].sample,0);
  assert.equal(report.coverage.states[2].status,'observed');assert.equal(report.coverage.states[2].sample,2);
  assert.equal(report.coverage.states[1].status,'not-observed');assert.equal(report.coverage.states[1].reason,'navigation-mapping-changed');assert.equal(report.coverage.states[1].sample,undefined);
  assert.equal(report.coverage.states[3].reason,'protected-state');assert.equal(report.coverage.states[3].sample,undefined);
+ assert.equal(report.coverage.states[4].status,'not-observed');assert.equal(report.coverage.states[4].reason,'external-content');assert.equal(report.coverage.states[4].sample,undefined);
  assert.deepEqual(report.samples,samples);
  assert.equal(navigationObservationMatches({id:'page-home',status:'observed'},{kind:'destination',key:'home'}),true);
  assert.equal(navigationObservationMatches({id:'settings-general',status:'observed'},{kind:'settings',key:'general-settings'}),false);
@@ -83,15 +86,23 @@ test('hidden cached selections do not prove navigation or become restoration tar
  assert.equal(await d.evaluate('('+navigationReached.toString()+')("settings","account")'),false);
  const cached=d.nodes.find(n=>n.key==='account');cached.visible=true;cached.hidden=true;
  assert.equal(await d.evaluate('('+navigationReached.toString()+')("settings","account")'),false);
+ cached.hidden=false;cached.inert=true;
+ assert.equal(await d.evaluate('('+navigationReached.toString()+')("settings","account")'),false);
  assert.equal(await d.evaluate('('+navigationReached.toString()+')("settings","general-settings")'),true);
  await d.evaluate('('+saveNavigation.toString()+')()');
  assert.deepEqual(await d.evaluate('window.__codexCreatorNavigation.selected.map(n=>n.key)'),['general-settings']);
+ d.nodes.find(n=>n.key==='general-settings').inert=true;
+ assert.equal(await d.evaluate('('+restoreNavigation.toString()+')(true)'),false);assert.deepEqual(d.ui.clicks,[]);
 });
 
 test('sidebar control labels can be configured without source-language edits',async()=>{
  const d=settingsDom();
  assert.deepEqual(await d.evaluate('('+sidebarState.toString()+')(false,["Masquer le panneau"])'),{requested:true});
  assert.equal(d.ui.sidebar,false);
+ d.toggle.inert=true;
+ assert.deepEqual(await d.evaluate('('+sidebarState.toString()+')(true,["Masquer le panneau"])'),{requested:false,reason:'sidebar-toggle-unmapped'});
+ assert.equal(d.ui.sidebar,false);
+  d.toggle.inert=false;
  assert.deepEqual(await d.evaluate('('+sidebarState.toString()+')(true,["Unrelated label"])'),{requested:false,reason:'sidebar-toggle-unmapped'});
  assert.equal(d.ui.sidebar,false);
 });
@@ -122,4 +133,32 @@ test('settings restoration failure remains a blocking result',async()=>{
  const f=await batchFixture();f.ui.failRestore=true;const {report}=await f.run();
  assert.equal(report.coverage.settingsRestored,false);assert.equal(report.coverage.restored,false);
  assert.equal(report.coverage.restoreError,'Settings navigation restoration was not observed');assert.equal(f.opened,f.closed);
+});
+
+test('known external profile entry stays unvisited and cannot remove the native settings surface',async()=>{
+ // Independently observed live behavior: Profile opens an embedded view and
+ // removes the ordinary settings navigation. Do not simulate success there.
+ const f=await batchFixture({externalProfile:true});const {report}=await f.run();
+ assert.ok(!f.ui.clicks.includes('profile'),'An external settings entry must not be clicked by the native batch');
+ const profile=report.coverage.states.find(row=>row.id==='settings-profile');
+ assert.equal(profile.status,'not-observed');assert.equal(profile.reason,'external-content');
+ assert.equal(f.ui.open,true);assert.equal(f.ui.current,'general-settings');
+ assert.equal(report.coverage.settingsRestored,true);assert.equal(f.opened,f.closed);
+});
+
+test('unexpected departure stops the batch without rewriting unvisited entries as missing',async()=>{
+ const f=await batchFixture({unexpectedDeparture:true});
+ const before=structuredClone(f.report.coverage.states.find(row=>row.id==='settings-plugins'));
+ const {report}=await f.run();
+ assert.equal(report.coverage.settingsInterrupted,true);assert.equal(report.coverage.restored,false);
+ assert.equal(report.coverage.states.find(row=>row.id==='settings-notifications').reason,'settings-surface-lost');
+ assert.deepEqual(report.coverage.states.find(row=>row.id==='settings-plugins'),before);
+ assert.ok(!f.ui.clicks.includes('plugins-settings'));assert.equal(f.opened,f.closed);
+});
+
+test('focused editable fields pause the settings batch without reading or changing their value',async()=>{
+ const f=await batchFixture();
+ f.document.activeElement={matches:()=>true,get value(){throw new Error('Draft value must not be read');}};
+ await assert.rejects(f.run(),/leave the editable field/);
+ assert.deepEqual(f.ui.clicks,[]);assert.equal(f.ui.current,'general-settings');assert.equal(f.opened,f.closed);
 });

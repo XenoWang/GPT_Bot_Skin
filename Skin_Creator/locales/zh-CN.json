@@ -61,7 +61,9 @@
     "property.borderWidth": "边框宽度",
     "property.scrollbarThumb": "滚动条滑块",
     "reason.protected-state": "受保护状态，不读取内容",
-    "reason.navigation-mapping-changed": "入口对应关系已变化，需要补采"
+    "reason.navigation-mapping-changed": "入口对应关系已变化，需要补采",
+    "reason.external-content": "独立嵌入内容，不进入采集",
+    "reason.settings-surface-lost": "已离开本地设置表面，停止补采"
   },
   "errors": {
     "*": "当前步骤未完成：{detail}",
@@ -122,7 +124,8 @@
     "Open an ordinary settings page before batch capture": "请先打开一个普通设置页，再进行批量补采。",
     "Batch capture requires the same verified inventory window": "批量补采必须使用原盘点中已校验的同一窗口。",
     "Protected state is not inspected: *": "不采集受保护状态：{detail}",
-    "Settings navigation restoration was not observed": "未确认恢复原设置页，请检查界面后再继续。"
+    "Settings navigation restoration was not observed": "未确认恢复原设置页，请检查界面后再继续。",
+    "External content is not inspected: *": "不采集独立嵌入内容：{detail}"
   },
   "regions": {
     "titlebar": "顶部栏",

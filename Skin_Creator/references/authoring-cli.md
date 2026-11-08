@@ -32,11 +32,11 @@ All commands share the prefix above. The CLI returns concise agent-facing summar
 
 Use `--target` only when multiple native windows cannot be disambiguated. Missing managed sessions, old runtimes and unknown client versions block dependent steps. Inventory restores window/navigation state and records restoration failures. It never submits business actions or reads messages, input values or credentials.
 
-设置入口未在初始导航中出现时，先用可用UI工具打开原生设置，再执行 `capture-settings`。脚本一次处理实际可访问的已知子页，验证可见导航的选中状态；结束或异常时恢复原设置子页。父级设置界面由打开它的UI步骤负责返回原工作区，不把子页恢复误称为已关闭设置。缺失入口保留缺口，密码等受保护状态不进入采集。
+设置入口未在初始导航中出现时，先用可用UI工具打开原生设置，再执行 `capture-settings`。脚本一次处理实际可访问的已知子页，验证可见且可交互的导航状态；结束或异常时恢复原设置子页。父级设置界面由打开它的UI步骤负责返回原工作区，不把子页恢复误称为已关闭设置。缺失入口保留缺口，密码等受保护状态不进入采集；版本配置中的 `externalStates`（例如打开独立嵌入视图的个人资料入口）也不由本地批量点击。若意外跳转使设置表面消失，立即停止并保留未访问项。检查恢复回执，不能只看命令退出码。
 
 `runtime/adapters/authoring-controls-26.1103.json` 维护同一语义状态对应的实际导航键及侧栏控件标签。每项已观察导航带实际目标键；别名变化只失效相关记录，不清空已确认图意或无关采样。预览/导出前也会复核这些记录；隐藏的缓存导航节点不能作为已到达页面的证据。修改配置须对应真实结构证据，不按猜测新增可执行入口。
 
-Open native Settings once through available UI tools, then use `capture-settings` to collect reachable known tabs. The batch restores the starting settings tab even on failure; the calling UI workflow returns from Settings to the original workspace. Protected states and missing entries stay explicit gaps. Versioned control aliases are configuration, and each observation retains its native navigation key. Changed mappings invalidate affected observations before preview/export; hidden cached navigation cannot prove coverage.
+Open native Settings once through available UI tools, then use `capture-settings` to collect reachable known tabs. The batch attempts to restore the starting tab even on failure; the calling UI workflow returns from Settings to the original workspace. Protected states, known `externalStates`, and missing entries stay explicit gaps. An unexpected departure from the native settings surface stops the batch; inspect restoration receipts, not just the exit code. Versioned control aliases are configuration, and each observation retains its native navigation key. Changed mappings invalidate affected observations before preview/export; hidden or inert cached navigation cannot prove coverage or serve as restoration targets.
 
 ## 最小输入 / Minimal inputs
 

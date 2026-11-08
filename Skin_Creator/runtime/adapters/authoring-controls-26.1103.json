@@ -9,5 +9,6 @@
     "settings-git": {"kind": "settings", "key": "git-settings"}
   },
   "sidebarToggleLabels": ["Toggle sidebar", "Open sidebar", "Close sidebar", "Hide sidebar", "Show sidebar", "切换侧栏", "打开侧栏", "关闭侧栏", "隐藏侧边栏", "显示侧边栏"],
-  "protectedStates": ["settings-passwords"]
+  "protectedStates": ["settings-passwords"],
+  "externalStates": ["settings-profile"]
 }

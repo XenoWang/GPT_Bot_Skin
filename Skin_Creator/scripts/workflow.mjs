@@ -10,17 +10,22 @@ function normalizeStyle(value,allowSurface=false){
  if(!object(value)||Object.keys(value).some(k=>!['text','border','borderWidth',...(allowSurface?['surface']:[])].includes(k)))throw new Error('Invalid explicit control style');
  const result={};
  for(const [key,val]of Object.entries(value)){
+   if(allowSurface&&key==='surface'&&val===null){result.surface=null;continue;}
   if(key==='borderWidth'){if(typeof val!=='number'||!Number.isFinite(val)||val<0||val>8)throw new Error('Border width must be within 0..8');result[key]=val;}
   else{if(typeof val!=='string'||!/^#[\da-f]{6}$/i.test(val))throw new Error('Explicit colors must use #RRGGBB');result[key]=val.toUpperCase();}
  }
  return result;
 }
 export function controlStyle(palette,key,measured){
+ if(palette.regionStyles?.[key]===null)return null;
  const general={...(palette.style??{})};if(PRESERVE_TEXT_REGIONS.includes(key))delete general.text;
  const explicit={...general,...palette.regionStyles?.[key]},foregrounds=explicit.text?[explicit.text]:measured;
  if(!foregrounds?.length)throw new Error('Missing foreground color samples for '+key);
  let style;
- if(explicit.surface||explicit.text){
+  if(explicit.surface===null){
+   if(!explicit.text)throw new Error('Transparent controls require an explicit foreground');
+   style={surface:palette.selected[0],surfaceOpacity:0,borderWidth:0};
+  }else if(explicit.surface||explicit.text){
   const candidates=explicit.surface?[explicit.surface]:palette.selected;
   const surface=candidates.find(color=>foregrounds.every(f=>contrast(color,f)>=4.5));
   if(!surface)throw new Error('EXPLICIT_CONTRAST_CONFLICT: '+key);
@@ -118,6 +123,7 @@ export function buildManifest(session,stage='background'){
   if(session.palette.mode==='theme'){const candidates=paletteCandidates(Object.values(session.assets).flatMap(a=>a.colors));if(session.palette.selected.some(c=>!candidates.includes(c)))throw new Error('The background palette changed; review the retained color selection');}
   for(const key of session.selection.regions){
    if(result.scene?.regions.includes(key)||regions[key]?.background)continue;
+    if(session.palette.regionStyles?.[key]===null)continue;
    if(key==='scrollbars'){regions[key]={enabled:true,style:{surface:session.palette.selected[0],text:session.palette.selected.at(-1)}};continue;}
    regions[key]={enabled:true,style:controlStyle(session.palette,key,session.foregrounds?.[key])};
   }
@@ -137,7 +143,8 @@ export function choosePalette(session,input){
   if(!object(input.regionStyles))throw new Error('Invalid region style overrides');
   palette.regionStyles={};
   for(const [key,value]of Object.entries(input.regionStyles)){
-   if(!session.selection.regions.includes(key)||SCENE_REGIONS.includes(key)||key==='scrollbars')throw new Error('Explicit style requires a selected control region: '+key);
+    if(!session.selection.regions.includes(key)||SCENE_REGIONS.includes(key)||key==='scrollbars'&&value!==null)throw new Error('Explicit style requires a selected control region: '+key);
+    if(value===null){palette.regionStyles[key]=null;continue;}
    const style=normalizeStyle(value,true);
    if(style.text&&PRESERVE_TEXT_REGIONS.includes(key))throw new Error('Preserve native semantic foregrounds for '+key);
    palette.regionStyles[key]=style;
@@ -153,8 +160,9 @@ export function confirm(session,stage,revision,note){
  if(!expected||revision!==expected)throw new Error('Stale or unknown confirmation');
  if(stage!=='prompt'&&(session.previews[stage]?.revision!==revision||!session.previews[stage]?.applied||session.previews[stage]?.uncoveredScene))throw new Error('Preview the exact revision and resolve uncovered scene geometry before confirmation');
  if(stage==='complete'&&session.confirmations.background?.revision!==backgroundRevision(session))throw new Error('Background confirmation is stale');
+ if(stage==='complete'&&session.previews.complete?.contrast?.passed!==true)throw new Error('Resolve actual control contrast issues before accepting or exporting');
  session.confirmations[stage]={revision,note,at:new Date().toISOString()};return {stage,revision};
 }
 export function summary(session){
- return {id:session.id,language:session.selection?.language??session.suggestedLanguage,selection:session.selection,source:session.source,inventory:session.inventory?{version:session.inventory.clientVersion,observed:session.inventory.coverage?.states.filter(s=>s.status==='observed').length,gaps:session.inventory.coverage?.states.filter(s=>s.status!=='observed').map(s=>s.id),restored:session.inventory.coverage?.restored}:null,slots:session.selection?requiredSlots(session):[],assets:Object.keys(session.assets),confirmations:Object.keys(session.confirmations),backgroundRevision:session.selection?backgroundRevision(session):null,completeRevision:session.palette?completeRevision(session):null};
+ return {id:session.id,language:session.selection?.language??session.suggestedLanguage,selection:session.selection,source:session.source,inventory:session.inventory?{version:session.inventory.clientVersion,observed:session.inventory.coverage?.states.filter(s=>s.status==='observed').length,gaps:session.inventory.coverage?.states.filter(s=>s.status!=='observed').map(s=>s.id),shellOnlyStates:session.inventory.coverage?.states.filter(s=>s.status==='observed'&&s.scope==='shell-only').map(s=>s.id),restored:session.inventory.coverage?.restored}:null,slots:session.selection?requiredSlots(session):[],assets:Object.keys(session.assets),confirmations:Object.keys(session.confirmations),backgroundRevision:session.selection?backgroundRevision(session):null,completeRevision:session.palette?completeRevision(session):null};
 }

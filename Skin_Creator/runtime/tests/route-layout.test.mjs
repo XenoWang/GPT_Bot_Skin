@@ -129,8 +129,26 @@ test('topbar gap changes only its owned background and follows layout updates',t
  bar.rect={left:0,right:1338,top:0,bottom:36,width:1338,height:36};content.rect={left:348,right:1338,top:44,bottom:752,width:990,height:708};frame.queries.set('content',[content]);a.adapter.titlebarGap={scope:'frame',references:['content'],maxGap:32};
  a.tag(bar,'titlebar');a.mountDecoration(bar,'titlebar',{gradient:{angle:90,stops:[{color:'#1E0710',at:0},{color:'#0D060A',at:1}]}});const v=a.mounted.get(bar);
  assert.equal(v.layer.style.bottom,'-8px');assert.equal(bar.rect.height,36);assert.equal(bar.style.height,undefined);assert.deepEqual(bar.children,[v.layer,button]);assert.match(v.layer.style.cssText,/pointer-events:none/);assert.ok(v.ro.watched.has(content));
+ assert.match(v.layer.style.cssText,/-webkit-app-region:initial!important/);
  content.rect.top=48;content.rect.height=704;v.update();assert.equal(v.layer.style.bottom,'-12px');content.rect.top=36;content.rect.height=716;v.update();assert.equal(v.layer.style.bottom,'0px');
  a.clear();assert.deepEqual(bar.children,[button]);assert.equal(v.ro.watched.size,0);
+});
+
+test('shared titlebar scene fills the measured gap while ignoring cached reference surfaces',t=>{
+ const {a,Node}=environment(t),globals=new Map(['innerWidth','innerHeight','devicePixelRatio'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));t.after(()=>{for(const[k,d]of globals){if(d)Object.defineProperty(globalThis,k,d);else delete globalThis[k];}});
+ globalThis.innerWidth=1338;globalThis.innerHeight=752;globalThis.devicePixelRatio=1;globalThis.getComputedStyle=n=>({position:'relative',visibility:n.hidden?'hidden':'visible'});
+ const frame=new Node('frame'),bar=new Node('bar'),button=new Node('button'),content=new Node('content'),hidden=new Node('content'),zero=new Node('content'),inert=new Node('content');frame.selectors.add('frame');frame.append(bar);bar.append(button);
+ bar.rect={left:0,right:1338,top:0,bottom:36,width:1338,height:36};bar.clientWidth=1338;bar.clientHeight=36;
+ content.rect={left:348,right:1338,top:44,bottom:752,width:990,height:708};
+ hidden.rect={left:0,top:0,width:100,height:100};hidden.hidden=true;zero.rect={left:0,top:0,width:0,height:0};inert.rect={left:0,top:0,width:100,height:100};inert.selectors.add('[inert],[aria-hidden="true"]');
+ frame.queries.set('content',[hidden,zero,inert,content]);a.adapter.titlebarGap={scope:'frame',references:['content'],maxGap:32};
+ const bg={asset:'assets/shared.png',blackOverlay:.12,subject:[.4,.2,.6,.8],fit:'subject-safe',maxScale:1,blurFill:false};a.pack={manifest:{regions:{titlebar:{enabled:true}},scene:{scope:'window',regions:['titlebar'],background:bg}},assets:{'assets/shared.png':'scene-image'}};a.dimensions={'assets/shared.png':[2676,1504]};
+ a.mountBackground(bar,'titlebar',bg,true);const mounted=a.mounted.get(bar);
+ assert.equal(mounted.layer.style.bottom,'-8px');assert.equal(bar.clientHeight,36);assert.equal(bar.style.height,undefined);assert.equal(mounted.layer.dataset.sceneCovered,'true');
+ assert.match(mounted.layer.style.cssText,/-webkit-app-region:initial!important/);
+ content.rect.top=48;mounted.update();assert.equal(mounted.layer.style.bottom,'-12px');
+ content.rect.top=36;mounted.update();assert.equal(mounted.layer.style.bottom,'0px');
+ a.clear();assert.deepEqual(bar.children,[button]);assert.equal(window.listeners.get('resize').size,0);
 });
 
 test('footer masks clear with the chat background while the input keeps its black surface',async t=>{
@@ -274,6 +292,48 @@ test('shared surfaces retain old bordered groups and cover ring-only groups and 
  const {a}=environment(t);a.adapter.nativeComponents=native.nativeComponents;a.pack={manifest:{regions:{menus:{enabled:true,style:{surface:'#13090D',surfaceOpacity:.8}},rightPanel:{enabled:true,style:{surface:'#16080E',surfaceOpacity:.4},gradient:{angle:180,stops:[{color:'#2A0812',at:0},{color:'#090609',at:1}]}}},hover:{surface:'#A71032',surfaceOpacity:.6}}};a.refresh();
  assert.match(a.style.textContent,/--suggestion-menu-header-background:rgba\(19,9,13,0.8\)!important/);assert.match(a.style.textContent,/--trees-bg-override:transparent!important/);assert.match(a.style.textContent,/--trees-bg-muted-override:rgba\(167,16,50,0.6\)!important/);
  assert.ok(!a.style.textContent.includes('[data-codex-appearance~="rightPanel"]{background-color:'));a.clear();assert.equal(a.style.textContent,'');
+});
+
+test('attachment styling marks only the outer card and leaves preview and hover layers untouched',async t=>{
+ const native=await adapter(),{a,Node,queries}=environment(t);
+ const card=new Node('div'),base=new Node('span'),hover=new Node('span'),preview=new Node('img');card.append(base);base.append(preview);card.append(hover);preview.src='fixture-image';
+ a.adapter.regions={attachments:native.regions.attachments};a.adapter.outermostRegions=native.outermostRegions;
+ queries.set('.composer-attachment-surface',[card,base,hover]);
+ a.pack={manifest:{regions:{attachments:{enabled:true,style:{surface:'#F8CCD7',text:'#000000',border:'#D98BA4',borderWidth:1}}}}};a.refresh();
+ assert.equal(card.getAttribute('data-codex-appearance'),'attachments');assert.equal(base.getAttribute('data-codex-appearance'),null);assert.equal(hover.getAttribute('data-codex-appearance'),null);assert.equal(a.counts.attachments,1);assert.equal(preview.src,'fixture-image');
+ a.clear();assert.deepEqual(card.children,[base,hover]);assert.deepEqual(base.children,[preview]);assert.equal(card.getAttribute('data-codex-appearance'),null);
+});
+
+test('ordinary foregrounds reach neutral labels and editors without universal semantic overrides',t=>{
+ const {a,Node,queries}=environment(t),composer=new Node('composer'),bubble=new Node('bubble'),code=new Node('pre');
+ a.adapter.regions={composer:['composer'],userMessages:['bubble'],codeBlocks:['code']};queries.set('composer',[composer]);queries.set('bubble',[bubble]);queries.set('code',[code]);
+ a.pack={manifest:{regions:{composer:{enabled:true,style:{surface:'#FFE4EC',text:'#000000'}},userMessages:{enabled:true,style:{surface:'#F8CCD7',text:'#000000'}},codeBlocks:{enabled:true,style:{surface:'#202020'}}}}};a.refresh();
+ const css=a.style.textContent;assert.match(css,/--color-codex-description:#000000!important/);assert.match(css,/--button-text-color:#000000!important/);assert.match(css,/\.ProseMirror\{color:#000000!important;caret-color:#000000!important/);assert.match(css,/\[data-markdown-text-tone="user-message"\]\{color:#000000!important/);
+ assert.ok(!css.includes(' *{color:'));assert.ok(!css.includes('--color-text-success:'));assert.ok(!css.includes('--color-text-danger:'));
+ assert.match(css,/\[data-codex-appearance~="codeBlocks"\]\{background-color:rgba\(32,32,32,1\)!important\}/);
+ a.clear();assert.equal(bubble.getAttribute('data-codex-appearance'),null);
+});
+
+test('transparent hit controls stay native and summary paint targets its visible inner surface',t=>{
+ const {a,Node,queries}=environment(t),gutter=new Node('button'),activity=new Node('button'),ordinary=new Node('button'),outer=new Node('div'),panel=new Node('section');outer.append(panel);
+ // Independent native specimens: the gutter is outside the transcript scroller.
+ gutter.matches=q=>q.split(',').includes('[data-app-shell-main-surface] nav .vertical-scroll-fade-mask button');activity.matches=q=>q.split(',').includes('[class~="group/activity-header"] > button[aria-expanded]');ordinary.matches=()=>false;outer.matches=q=>q==='[data-slot="popover-content"]';outer.queries.set('[class~="group/summary-panel"]',panel);
+ const action=()=>17;gutter.onclick=action;gutter.setAttribute('data-codex-appearance','buttons');a.oldMarks.set(gutter,null);outer.setAttribute('data-codex-appearance','dialogs');a.oldMarks.set(outer,null);
+ queries.set('buttons',[gutter,activity,ordinary]);queries.set('dialogs',[outer]);a.adapter.regions={buttons:['buttons'],dialogs:['dialogs']};
+ a.pack={manifest:{regions:{buttons:{enabled:true,style:{surface:'#FFE4EC',text:'#000000'}},dialogs:{enabled:true,style:{surface:'#FFE4EC',text:'#000000',border:'#D98BA4',borderWidth:1}}}}};a.refresh();
+ assert.equal(a.counts.buttons,1);assert.equal(gutter.getAttribute('data-codex-appearance'),null);assert.equal(activity.getAttribute('data-codex-appearance'),null);assert.equal(ordinary.getAttribute('data-codex-appearance'),'buttons');assert.equal(gutter.onclick,action);
+ assert.equal(outer.getAttribute('data-codex-appearance'),null);assert.equal(panel.getAttribute('data-codex-appearance'),'dialogs');assert.match(a.style.textContent,/group\/summary-panel"\]\{--color-surface-elevated-secondary:rgba\(255,228,236,1\)!important/);
+ a.clear();assert.deepEqual(outer.children,[panel]);assert.equal(gutter.onclick,action);assert.equal(panel.getAttribute('data-codex-appearance'),null);
+});
+
+test('transcript clipping follows the whole composer stack and falls back when its wrapper is hidden',t=>{
+ const {a,Node,queries}=environment(t),scope=new Node('scope'),content=new Node('content'),input=new Node('input'),stack=new Node('stack');stack.append(input);stack.selectors.add('[data-codex-composer-reference-drop-target]');
+ scope.rect={top:0,bottom:500,width:800,height:500};content.rect={top:0,bottom:1000,width:800,height:1000};input.rect={top:450,bottom:500,width:800,height:50};stack.rect={top:300,bottom:500,width:800,height:200};
+ scope.queries.set('content',[content]);scope.queries.set('input',[input]);queries.set('[data-codex-appearance~="chat"] scope',[scope]);a.adapter.transcriptClips=[{scope:'scope',content:'content',composer:'input'}];a.pack={manifest:{regions:{chat:{enabled:true,style:{surface:'#000000'}}}}};a.syncTranscriptClips();
+ assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'700px');assert.equal(a.clips.get(content).composer,stack);
+ stack.rect.top=400;a.clips.get(content).update();assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'600px');
+ stack.rect.width=0;a.syncTranscriptClips();assert.equal(a.clips.get(content).composer,input);assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'550px');
+ a.clear();assert.equal(content.getAttribute('data-codex-appearance-clip'),null);
 });
 
 test('unified runtime shares one precomputed scene across regions and releases resize listeners',t=>{

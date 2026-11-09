@@ -10,6 +10,16 @@ When accepted public files change, review the changes before refreshing this fix
 
 Tests write to the bundled runtime's ignored `work/` directory; the Creator CLI export fixture also creates and removes a uniquely named synthetic session under `Skin_Creator/work/`, because the production CLI confines authoring sessions there. They do not start the real client, create desktop shortcuts, inspect credentials or publish anything. Follow any execution-approval policy active in the current workspace.
 
+## Selective control styling and rendered contrast
+
+Control fixtures preserve accepted backgrounds while selecting native regions or transparent white assistant replies. Complete confirmation/export refuse a missing or failed rendered contrast receipt. The contrast collector runs against a synthetic style/geometry tree whose content/value/markup getters throw: white-on-white is 1:1, black on RGB 45 is 1.52:1, and half-black over white is 3.98:1. Visible aria-hidden icons must be inspected. Image-backed, semantic, disabled/hidden and otherwise unresolved rendering remains a reported limit rather than an inferred pass; no changed foreground makes the check explicitly not applicable.
+
+Renderer fixtures require narrow neutral text propagation, unchanged code/status colors, native transparent hit areas, painting on the actual rounded summary panel with inherited inner/pseudo background variables, decorative layers outside native drag-region calculation, and clipping to the whole composer/question stack. Synthetic DOM/stylesheet checks do not prove physical mouse delivery; the requested live authoring review supplies that separate evidence.
+
+## Package-specific bundled themes
+
+The optional package-local theme catalog retains the original two defaults and can append validated data-only Skins. Tests reject traversal, duplicates, changed defaults, oversized catalogs and manifest identity mismatches. Usage deliberately includes Spring Sakura while Creator retains its original samples. Shared implementation bytes are still identical; only the explicit catalog/theme data and their generated payloads differ. Existing isolated ZIP rebuilds must reproduce each package's payload byte-for-byte with both original package directories blocked, so this is not a waiver for misplaced functions or missing dependencies.
+
 ## Creator rewrite coverage
 
 `test_creator.py` adds Node contracts, syntax checks and a real Windows image-codec check using an independently encoded red/blue PNG. New Node cases cover hand-calculated cover cropping, protected-detail conflicts, known contrast ratios, stage/revision gates, generated-prompt gating, unified/separate manifests, saved window placements and bounded caching, extendable locale files, safe structural navigation helpers, escaped numbered diagrams, temporary preview restoration and multiselect controls, and data-only export with tamper/overwrite rejection. Existing route-layout cases also exercise shared-background rendering across synthetic native regions.
@@ -17,6 +27,8 @@ Tests write to the bundled runtime's ignored `work/` directory; the Creator CLI 
 Oracles come from the confirmed behavior, explicit mathematical examples and synthetic inputs, not captured implementation output. The matching-version inventory fixture now uses equal client/adapter versions; a separate negative assertion requires review when they differ. Existing theme fingerprints and all original opacity/layout/translation regressions remain in force.
 
 Navigation and preview DOM cases are mocks; they do not establish live adapter coverage, actual screenshots, every text color, WebP decoder availability, or real generation-provider integration. Those need subsequent user-directed unified/separate Skin creation trials. No test approval is inferred from this README.
+
+Standalone Profile coverage uses a native surface specimen rather than a selected Settings tab. The settings-batch regression still forbids clicking that entry and requires restoration. Separate manual-capture cases reject absent, hidden and inert structures, trap content/value reads, preserve the previous report and invalidate evidence when the configured surface changes. The tool-card selector contract comes from observed direct activity-header ancestry; it preserves the legacy selector and disabled bundled-theme configuration. These checks do not establish browser layout or visual acceptance.
 
 ## Additional Python launch route
 
@@ -48,8 +60,12 @@ Expected styles come from the requested unchanged pink surface, black foreground
 
 ## Settings batch and navigation aliases
 
+Protected settings shell tests use only synthetic outer rectangles and styles. Descendant, text, value and markup reads throw; only the two approved outer selectors are accepted. Separate orchestration cases require a genuine authorization note to be supplied by the caller, correct native navigation, configured scope and a distinct shell-only receipt. Ordinary capture and automatic settings navigation remain blocked. Summaries disclose shell-only states, and configuration changes invalidate evidence. The tests do not create human permission or read real credentials.
+
+The attachment renderer fixture models the observed outer card, image base and hover ring sharing a selector. Only the outer card may receive the Skin marker; the image node and both inner layers must survive refresh and cleanup unchanged. Actual browser appearance still requires the user-directed draft-attachment preview.
+
 `settings-capture.test.mjs` exercises the actual inventory and batch-capture orchestration with an isolated DOM/connection provider. Expected native keys are the independently observed Images, General, Plugins, Hooks and Git entries. Tests require changed aliases to invalidate only affected observations, reject unsafe route keys, ignore hidden cached selections, and accept sidebar labels from configuration without source-language edits.
 
 The batch fixtures include reachable tabs, missing entries, a hidden stale selection and a visible protected password entry. They require actual capture receipts for reachable tabs, refusal to enter the protected state, preservation of gaps, restoration after capture errors, blocking on restoration failure, and refusal of a different inventory window before navigation. Synthetic settings nodes throw if their content or values are read. Connection opens/closes must balance, including failure paths. These are mocked navigation/collection checks, not live application coverage or proof that every installed client's settings entry exists.
 
-A live-discovered Profile entry that leaves the native Settings surface is retained as a regression fixture. Known external entries must remain unvisited and explicitly reported; an unexpected departure stops traversal without relabeling all remaining entries as missing. Inert cached controls cannot prove navigation or receive restoration clicks. Focused editable fields pause the batch without reading their values. The external-entry assertion was first run against the unchanged implementation and detected the defect; its expected result is not derived from a repaired output.
+A live-discovered Profile entry that leaves the native Settings surface is retained as a regression fixture. Its initial external-content classification was later corrected by actual native-page inspection; the no-click and restoration assertions remain in force. Standalone native pages and known external entries must remain unvisited by the settings batch; an unexpected departure stops traversal without relabeling all remaining entries as missing. Inert cached controls cannot prove navigation or receive restoration clicks. Focused editable fields pause the batch without reading their values. The original no-click assertion was first run against the unchanged implementation and detected the defect; its expected result is not derived from a repaired output.

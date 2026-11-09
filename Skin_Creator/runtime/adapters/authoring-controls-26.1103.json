@@ -6,9 +6,11 @@
     "settings-general": {"kind": "settings", "key": "general-settings"},
     "settings-plugins": {"kind": "settings", "key": "plugins-settings"},
     "settings-hooks": {"kind": "settings", "key": "hooks-settings"},
-    "settings-git": {"kind": "settings", "key": "git-settings"}
+    "settings-git": {"kind": "settings", "key": "git-settings"},
+    "settings-profile": {"kind": "surface", "key": "profile-viewer", "selector": "[data-app-shell-main-surface] section[class~='group/profile-section']"}
   },
   "sidebarToggleLabels": ["Toggle sidebar", "Open sidebar", "Close sidebar", "Hide sidebar", "Show sidebar", "切换侧栏", "打开侧栏", "关闭侧栏", "隐藏侧边栏", "显示侧边栏"],
   "protectedStates": ["settings-passwords"],
-  "externalStates": ["settings-profile"]
+  "protectedShellStates": ["settings-passwords"],
+  "externalStates": []
 }

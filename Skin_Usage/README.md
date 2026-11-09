@@ -4,6 +4,10 @@
 
 This standalone package includes its own runtime. Run `python Build-Zip.py --output ../Skin_Usage.zip` from this folder to package the reviewed public allowlist. Private state and developer artifacts are excluded. No sibling package is required.
 
+本包内置狂三、Neutral Dark 和「春日樱花」。春日樱花为一体式连续场景：50%背景蒙层，用户消息与输入框为浅樱花粉/黑字，助手回复透明底/白字；仅菜单、弹窗和表单等必要表面使用主题色，其余保留原生外观。
+
+Included Skins are Kurumi, Neutral Dark and 春日樱花 (Spring Sakura). The Sakura Skin uses one shared scene with a 50% dark overlay, pale-pink user bubbles and input with black text, and transparent assistant replies with white text. Native controls are retained outside the selected popup/form surfaces.
+
 ## 附加 Python 启动链路 / Additional Python launch route
 
 本包可独立运行，无需同级的其他包。原有 CMD／PowerShell 入口继续保留。以下 Python 3.10+ 命令从解压后的 Usage 目录运行：
@@ -69,13 +73,17 @@ powershell.exe -NoProfile -File ".\runtime\scripts\Configure-CodexSkin.ps1" -Pro
 - 选择 Skin 或导入一个含 `manifest.json` 的完整文件夹。相同 ID 不能重复导入，内置 Skin 不能删除。
 - 侧栏可选一张合并背景，或顶部双枪横图＋项目区竖图。最左导航栏独立装饰。
 - 透明度按当前 Skin 实际配置生成：狂三当前 35 项，Neutral Dark 2 项。数值越大越不透明；黑色蒙层越大图片越暗。每套 Skin 单独保存，可恢复该 Skin 默认值。
-- 用户消息默认绯红 70%＋白色细框；助手消息保持原样；底部输入框纯黑；代码块和 Token 活动卡为黑金 70%。侧栏黑蒙层 70%，主图 50%。
+- 狂三主题：用户消息默认绯红 70%＋白色细框；助手消息保持原样；底部输入框纯黑；代码块和 Token 活动卡为黑金 70%。侧栏黑蒙层 70%，主图 50%。
 - 默认跟随 GPT 的界面语言；当前有中文、English，其他语言回退 English。可单独固定 Skin 面板语言。[新增翻译文件](references/localization.md)无需改渲染器。
 - 「恢复原始外观」只移除皮肤效果并保留管理入口。完全移除本次注入用 `Restore-Skin.cmd`；然后正常退出并从原快捷方式启动以关闭 CDP。
 
 ## 文件与兼容性
 
 `runtime/themes/kurumi-twilight/` 是附赠的完整 Skin 文件夹，包含所需图片；`runtime/locales/` 是翻译文件。引擎源码、适配器和构建脚本在 runtime 中，方便后续创作和适配。主题包本身不支持脚本、任意 CSS、远程图片或自定义选择器。
+
+`runtime/themes/spring-sakura/` 只包含主题清单和场景图片。图片成品为1920×1032，经过等比放大与裁切，不宣称原生高分辨率。`runtime/theme-catalog.json` 明确列出内置主题；原两套主题及默认顺序保留。开发同步脚本只同步共有源码，并按各包自己的主题列表重建载荷，不把使用包的额外主题强塞进创作包。
+
+The Sakura folder contains only its manifest and referenced scene image. Its 1920×1032 image was proportionally enlarged and cropped; it is not claimed as native high-resolution output. The explicit package-local catalog preserves the original defaults. Shared code remains identical, while generated payloads may differ with each package's bundled themes.
 
 当前适配 Codex **26.1103.4239.0**，更新客户端后需重新检查原生 UI。Windows 原生对话框、嵌入网页和受保护内容不属于这个渲染器的主题范围。附赠图是为本方案生成/编辑的角色插画，不是官方授权素材声明。全景实际尺寸 **1774×887**；较大视口可能需要放大，应按实际显示尺寸检查清晰度。没有使用模糊填边，不宣称原生 4K。
 

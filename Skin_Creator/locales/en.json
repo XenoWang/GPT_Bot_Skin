@@ -62,7 +62,9 @@
     "property.scrollbarThumb": "Scrollbar thumb",
     "reason.protected-state": "Protected state; content is not inspected",
     "reason.navigation-mapping-changed": "Navigation mapping changed; capture again",
-    "reason.external-content": "Separate embedded content; not inspected",
+    "reason.external-content": "External content; not inspected",
+    "reason.manual-native-surface": "Open the standalone native page, then capture it",
+    "catalog.shellOnly": "Authorized outer layout only; contents and controls not accepted",
     "reason.settings-surface-lost": "Native Settings surface lost; batch stopped"
   },
   "errors": {
@@ -161,6 +163,11 @@
     "Keep sessions under the package .local/creator/ or work/ directory": "Keep sessions under the package .local/creator/ or work/ directory",
     "Inventory requires --state; start the bundled managed runtime first": "Inventory requires --state; start the bundled managed runtime first",
     "Invalid explicit control style": "Invalid explicit control style",
+    "Transparent controls require an explicit foreground": "Transparent controls require an explicit foreground",
+    "Preview the complete Skin before auditing contrast": "Preview the complete Skin before auditing contrast",
+    "Contrast inspection is unavailable on protected settings pages": "Contrast inspection is unavailable on protected settings pages",
+    "Invalid or stale control contrast audit": "Invalid or stale control contrast audit",
+    "Resolve actual control contrast issues before accepting or exporting": "Resolve actual control contrast issues before accepting or exporting",
     "Border width must be within 0..8": "Border width must be within 0..8",
     "Explicit colors must use #RRGGBB": "Explicit colors must use #RRGGBB",
     "Invalid palette options": "Invalid palette options",
@@ -188,7 +195,10 @@
     "Protected state is not inspected: *": "Protected state is not inspected: {detail}",
     "Settings navigation restoration was not observed": "Settings navigation restoration was not observed",
     "Commands: start, inventory, capture, capture-settings, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export": "Commands: start, inventory, capture, capture-settings, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export",
-    "External content is not inspected: *": "External content is not inspected: {detail}"
+    "External content is not inspected: *": "External content is not inspected: {detail}",
+    "Shell capture requires a configured state and actual user authorization note": "Shell capture requires a configured state and actual user authorization note",
+    "Protected settings shell was not structurally observed": "Protected settings shell was not structurally observed",
+    "Commands: *": "Commands: {detail}"
   },
   "regions": {
     "titlebar": "Top bar",

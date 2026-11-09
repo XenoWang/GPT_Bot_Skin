@@ -11,6 +11,7 @@ const bindingFor=(client,adapter,plan)=>createHash('sha256').update(JSON.stringi
 
 // Only known navigation attributes and structural state are read. No text/value/URL scraping.
 export function navigateKnown(kind,key){
+ if(kind==='surface')return {requested:false,reason:'manual-native-surface'};
  const visible=n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');};
  const query=kind==='settings'?`[data-settings-panel-slug="${key}"]`:`[data-sidebar-destination="builtin:${key}"]`;
  const nodes=[...document.querySelectorAll(query)].filter(visible);
@@ -18,7 +19,8 @@ export function navigateKnown(kind,key){
  const n=nodes[0];if(n.matches(':disabled,[aria-disabled="true"]'))return {requested:false,reason:'disabled-entry'};
  n.click();return {requested:true};
 }
-export function navigationReached(kind,key){
+export function navigationReached(kind,key,selector){
+ if(kind==='surface')return [...document.querySelectorAll(selector)].some(n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');});
  const query=kind==='settings'?`[data-settings-panel-slug="${key}"]`:`[data-sidebar-destination="builtin:${key}"]`;
  return [...document.querySelectorAll(query)].some(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true');});
 }
@@ -57,11 +59,24 @@ export function navigationRoute(id,controls={}){
  const match=/^(page|settings)-([a-z][a-z0-9-]*)$/.exec(id);
  if(!match)throw new Error('Unknown navigation state');
  const route=controls.navigationAliases?.[id]??{kind:match[1]==='page'?'destination':'settings',key:match[2]};
- if(!route||!['destination','settings'].includes(route.kind)||typeof route.key!=='string'||!/^[a-z][a-z0-9-]*$/.test(route.key))throw new Error('Invalid navigation mapping');
- return {kind:route.kind,key:route.key};
+ if(!route||!['destination','settings','surface'].includes(route.kind)||typeof route.key!=='string'||!/^[a-z][a-z0-9-]*$/.test(route.key)||route.kind==='surface'&&(typeof route.selector!=='string'||!route.selector.startsWith('[data-app-shell-main-surface] ')||route.selector.length>512))throw new Error('Invalid navigation mapping');
+ return {kind:route.kind,key:route.key,...(route.kind==='surface'?{selector:route.selector}:{})};
 }
-const navigationKey=route=>route.kind+':'+route.key;
+const navigationKey=route=>route.kind+':'+route.key+(route.kind==='surface'?':'+createHash('sha256').update(route.selector).digest('hex'):'');
 const restrictedStateReason=(id,controls)=>controls.protectedStates.includes(id)?'protected-state':controls.externalStates?.includes(id)?'external-content':null;
+const shellKey=(id,controls)=>'native-settings-shell-v1:'+navigationKey(navigationRoute(id,controls));
+export function shellObservationMatches(row,report,controls){
+ return controls.protectedShellStates?.includes(row.id)&&controls.protectedStates.includes(row.id)&&!controls.externalStates?.includes(row.id)&&row.status==='observed'&&row.scope==='shell-only'&&row.evidence==='native-shell-structure'&&row.shellKey===shellKey(row.id,controls)&&report.samples?.[row.sample]?.scope==='shell-only';
+}
+// Deliberately separate from captureRegions: never walk a protected page's subtree.
+export function captureSettingsShell(){
+ const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');};
+ const main=[...document.querySelectorAll('[data-app-shell-main-surface]')].filter(visible);
+ const settings=[...document.querySelectorAll('[data-app-shell-main-surface] [class~="group/settings"]')].filter(visible);
+ if(main.length!==1||settings.length!==1)throw new Error('Protected settings shell was not structurally observed');
+ const regionCoverage=[['chat',main[0]],['settings',settings[0]]].map(([key,n])=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return {key,matched:1,visible:1,status:'observed',selectorErrors:[],samples:[{visible:true,rect:[r.x,r.y,r.width,r.height].map(Math.round),background:s.backgroundColor,foreground:s.color,hasBackgroundImage:s.backgroundImage!=='none',border:s.borderWidth,position:s.position}]};});
+ return {scope:'shell-only',viewport:[innerWidth,innerHeight],pixelRatio:devicePixelRatio,canvas:{window:[innerWidth,innerHeight]},regionCoverage,candidates:[],shadowRoots:0,truncated:false,limitations:['Only the native main and settings outer containers were inspected.','No descendants, entries, text, values, identifiers, URLs or screenshots were collected.','Protected page contents and controls were not visually accepted.']};
+}
 export function navigationObservationMatches(row,route){
  return row?.status==='observed'&&(row.navigationKey??navigationKey(navigationRoute(row.id)))===navigationKey(route);
 }
@@ -69,17 +84,18 @@ export function refreshNavigationEvidence(report,controls){
  for(const row of report?.coverage?.states??[]){
   const restriction=restrictedStateReason(row.id,controls);
   const navigation=/^(page|settings)-/.test(row.id);
-  if(row.status==='observed'&&(restriction||navigation&&!navigationObservationMatches(row,navigationRoute(row.id,controls)))){
+  if(row.status==='observed'&&(restriction&&!shellObservationMatches(row,report,controls)||navigation&&!navigationObservationMatches(row,navigationRoute(row.id,controls)))){
    row.status='not-observed';row.reason=restriction??'navigation-mapping-changed';
    if(row.navigationKey)row.previousNavigationKey=row.navigationKey;
    delete row.sample;delete row.evidence;
   }
+  if(row.status!=='observed'&&!restriction&&navigation&&navigationRoute(row.id,controls).kind==='surface')row.reason='manual-native-surface';
  }
  return report;
 }
 export async function authoringControls(){
  const value=JSON.parse(await readFile(path.join(ROOT,'adapters/authoring-controls-26.1103.json'),'utf8'));
- if(!value||typeof value.version!=='string'||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates)||value.externalStates!==undefined&&!Array.isArray(value.externalStates))throw new Error('Invalid authoring controls configuration');
+ if(!value||typeof value.version!=='string'||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates)||value.externalStates!==undefined&&!Array.isArray(value.externalStates)||value.protectedShellStates!==undefined&&(!Array.isArray(value.protectedShellStates)||value.protectedShellStates.some(id=>!value.protectedStates.includes(id)||value.externalStates?.includes(id)||navigationRoute(id,value).kind!=='settings')))throw new Error('Invalid authoring controls configuration');
  return value;
 }
 export function selectedSettingsPage(){
@@ -106,7 +122,7 @@ export async function captureSettings({statePath,targetId,previous,onProgress=as
   for(const id of ids){
    const row=report.coverage.states.find(item=>item.id===id);
    const restriction=restrictedStateReason(row.id,controls);
-   if(restriction){row.status='not-observed';row.reason=restriction;delete row.sample;delete row.evidence;await remember(report);continue;}
+   if(restriction){if(shellObservationMatches(row,report,controls))continue;row.status='not-observed';row.reason=restriction;delete row.sample;delete row.evidence;await remember(report);continue;}
    const route=navigationRoute(row.id,controls);
    if(navigationObservationMatches(row,route)){row.reason=null;continue;}
    row.navigationKey=navigationKey(route);
@@ -131,7 +147,7 @@ export async function captureSettings({statePath,targetId,previous,onProgress=as
   try{await onProgress(report);}finally{client.close();}
  }
 }
-export async function inventory({statePath,targetId,previous=null,onProgress=async()=>{},manualState=null},{connect=managedPage,windows=windowController}={}){
+export async function inventory({statePath,targetId,previous=null,onProgress=async()=>{},manualState=null,shellOnly=false,authorizationNote=null},{connect=managedPage,windows=windowController}={}){
  const adapter=JSON.parse(await readFile(path.join(ROOT,'adapters/codex-26.1103.json'),'utf8'));
  const plan=JSON.parse(await readFile(path.join(ROOT,'adapters/authoring-26.1103.json'),'utf8'));
  const controls=await authoringControls();
@@ -142,15 +158,25 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
  const capture=async(label)=>{const sample=await page.evaluate('('+captureRegions.toString()+')('+JSON.stringify(adapter)+')');sample.label=label;report.samples.push(sample);report.coverageLabels.push(label);return sample;};
  try{
   if(client.clientVersion!==plan.version||controls.version!==plan.version)throw new Error('Unsupported client version: inventory/adaptation is required before automated navigation');
+  if(shellOnly&&(!manualState||!controls.protectedShellStates?.includes(manualState)||typeof authorizationNote!=='string'||!authorizationNote.trim()||authorizationNote.length>2000))throw new Error('Shell capture requires a configured state and actual user authorization note');
   if(manualState){
    if(!previous||previous.binding!==binding)throw new Error('Manual capture requires the same inventory session');
    report=structuredClone(previous);const row=report.coverage.states.find(s=>s.id===manualState);if(!row)throw new Error('Unknown coverage state');
    const restriction=restrictedStateReason(manualState,controls);
+   if(shellOnly){
+    if(restriction!=='protected-state')throw new Error('Shell capture requires a configured state and actual user authorization note');
+    const route=navigationRoute(manualState,controls);
+    if(!await page.evaluate('('+navigationReached.toString()+')('+JSON.stringify(route.kind)+','+JSON.stringify(route.key)+')'))throw new Error('Requested state was not structurally observed');
+    const sample=await page.evaluate('('+captureSettingsShell.toString()+')()');sample.label=manualState;
+    report.samples.push(sample);report.coverageLabels.push(manualState);
+    Object.assign(row,{status:'observed',reason:null,sample:report.samples.length-1,evidence:'native-shell-structure',scope:'shell-only',navigationKey:navigationKey(route),shellKey:shellKey(manualState,controls),authorizationNote});
+    await onProgress(report);return {report,catalog:makeCatalog(report)};
+   }
    if(restriction)throw new Error((restriction==='protected-state'?'Protected state is not inspected: ':'External content is not inspected: ')+manualState);
    const sample=await capture(manualState);
    const hits=sample.regionCoverage.filter(r=>row.regions.includes(r.key)&&r.visible>0&&!r.selectorErrors.length);
    let evidence=manualState==='existing-chat'?hits.some(r=>r.key==='userMessages'||r.key==='assistantMessages'):manualState==='dot'?await page.evaluate("!!document.querySelector('.messaging-embedded .conversation-viewport')"):manualState==='sidebar-hover'?await page.evaluate("!!document.querySelector('[data-slate-sidebar-peeking=\"true\"]')"):hits.some(r=>r.key===({menus:'menus',dialogs:'dialogs',questions:'questions',drawer:'rightPanel'}[manualState]));
-   if(manualState.startsWith('page-')||manualState.startsWith('settings-')){const route=navigationRoute(manualState,controls);evidence=await page.evaluate('('+navigationReached.toString()+')('+JSON.stringify(route.kind)+','+JSON.stringify(route.key)+')');if(evidence)row.navigationKey=navigationKey(route);}
+   if(manualState.startsWith('page-')||manualState.startsWith('settings-')){const route=navigationRoute(manualState,controls);evidence=await page.evaluate('('+navigationReached.toString()+')('+JSON.stringify(route.kind)+','+JSON.stringify(route.key)+','+JSON.stringify(route.selector??null)+')');if(evidence)row.navigationKey=navigationKey(route);}
    if(['sidebar-expanded','sidebar-collapsed'].includes(manualState))evidence=await page.evaluate('document.querySelector("[data-app-shell-frame]")?.getAttribute("data-app-shell-sidebar-open")==='+JSON.stringify(String(manualState==='sidebar-expanded')));
    if(!evidence||sample.truncated)throw new Error('Requested state was not structurally observed');
    Object.assign(row,{status:'observed',reason:null,sample:report.samples.length-1,evidence:'native-structure'});await onProgress(report);return {report,catalog:makeCatalog(report)};
@@ -192,7 +218,7 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
   for(const step of plan.manualStates){const old=resumable&&previous.coverage.states.find(s=>s.id===step.id&&s.status==='observed');report.coverage.states.push(old?{...old,sample:old.sample+3,reused:true}:{...step,status:'not-observed'});}
   return {report,catalog:makeCatalog(report)};
  }finally{
-  if(!manualState){
+   if(!manualState&&!shellOnly){
    let restored=true;
    try{if(navigationSaved){const original=await page.evaluate('window.__codexCreatorNavigation?.leftOpen');if(['true','false'].includes(original)){const result=await page.evaluate('('+sidebarState.toString()+')('+(original==='true')+','+JSON.stringify(controls.sidebarToggleLabels)+')');if(!result.requested)restored=false;await settle();if(await page.evaluate('document.querySelector("[data-app-shell-frame]")?.getAttribute("data-app-shell-sidebar-open")')!==original)restored=false;}restored=!!await page.evaluate('('+restoreNavigation.toString()+')('+navigationMoved+')')&&restored;}}catch{restored=false;}
    try{if(windowControl)await windowControl.restore();}catch(error){restored=false;report.coverage.restoreError=error.message;}

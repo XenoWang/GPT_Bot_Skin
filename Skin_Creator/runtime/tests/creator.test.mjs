@@ -61,7 +61,9 @@ test('stage gates bind acceptance to exact assets without losing explicit palett
  assert.throws(()=>confirm(s,'background',background,'User accepts'),/Preview the exact/);assert.throws(()=>choosePalette(s,{mode:'custom',colors:['#402030']}),/Confirm/);
  acceptBackground(s);choosePalette(s,{mode:'custom',colors:['#402030']});const complete=completeRevision(s);
  assert.throws(()=>confirm(s,'complete',complete,'Accept'),/Preview the exact/);
- s.previews.complete={revision:complete,applied:true,uncoveredScene:false};confirm(s,'complete',complete,'Synthetic acceptance');
+  s.previews.complete={revision:complete,applied:true,uncoveredScene:false};assert.throws(()=>confirm(s,'complete',complete,'Synthetic acceptance'),/actual control contrast/);
+  s.previews.complete.contrast={passed:false};assert.throws(()=>confirm(s,'complete',complete,'Synthetic acceptance'),/actual control contrast/);
+  s.previews.complete.contrast={passed:true};confirm(s,'complete',complete,'Synthetic acceptance');
  s.assets.scene.hash='b'.repeat(64);invalidate(s,'background');assert.deepEqual(s.palette.selected,['#402030']);assert.equal(s.confirmations.background,undefined);assert.equal(s.confirmations.complete,undefined);assert.notEqual(backgroundRevision(s),background);
  assert.throws(()=>confirm(s,'complete',complete,'Old acceptance'),/Stale/);assert.throws(()=>buildManifest(s,'complete'),/Confirm/);
 });
@@ -120,11 +122,13 @@ test('offline export contains only referenced data and refuses overwrite, stale 
  const directory=await temporary(t,path.join(ROOT,'Skin_Creator','work')),s=sessionFixture();
  s.selection.regions=['chat'];s.catalog.regions=[{key:'chat',requiresAdapterReview:false}];s.inventory.coverage.states=[{id:'home',status:'observed',regions:['chat']}];s.inventory.measurement={maximized:true,pixelRatio:1,canvas:{window:[1,1],main:[1,1],mainOrigin:[0,0]},windowed:{pixelRatio:1,canvas:{window:[1,1],main:[1,1],mainOrigin:[0,0]}}};
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1kAAAAASUVORK5CYII=','base64');await mkdir(path.join(directory,'assets'));await writeFile(path.join(directory,'assets','fixture.png'),png);
- s.assets={scene:{file:'assets/fixture.png',hash:createHash('sha256').update(png).digest('hex'),target:[1,1],subject:[.4,.4,.6,.6],colors:['#402030'],overlay:.35}};acceptBackground(s);choosePalette(s,{mode:'custom',colors:['#402030']});const revision=completeRevision(s);s.previews.complete={revision,applied:true,uncoveredScene:false};confirm(s,'complete',revision,'Synthetic acceptance');
+  s.assets={scene:{file:'assets/fixture.png',hash:createHash('sha256').update(png).digest('hex'),target:[1,1],subject:[.4,.4,.6,.6],colors:['#402030'],overlay:.35}};acceptBackground(s);choosePalette(s,{mode:'custom',colors:['#402030']});const revision=completeRevision(s);s.previews.complete={revision,applied:true,uncoveredScene:false,contrast:{passed:true}};confirm(s,'complete',revision,'Synthetic acceptance');
  await writeFile(path.join(directory,'session.json'),JSON.stringify(s));const destination=path.join(directory,'result');await run(['export','--session',directory,'--output',destination]);
  assert.deepEqual((await readdir(destination)).sort(),['assets','manifest.json']);assert.deepEqual(await readdir(path.join(destination,'assets')),['scene.png']);assert.deepEqual(await readFile(path.join(destination,'assets','scene.png')),png);
  const manifest=JSON.parse(await readFile(path.join(destination,'manifest.json'),'utf8'));assert.equal(manifest.id,'fixture-skin');assert.equal(manifest.source,undefined);assert.equal(manifest.confirmations,undefined);
  await assert.rejects(run(['export','--session',directory,'--output',destination]),/already exists/);
+  s.previews.complete.contrast={passed:false};await writeFile(path.join(directory,'session.json'),JSON.stringify(s));await assert.rejects(run(['export','--session',directory,'--output',path.join(directory,'contrast-blocked')]),/actual control contrast/);assert.equal((await readdir(directory)).includes('contrast-blocked'),false);
+  s.previews.complete.contrast={passed:true};await writeFile(path.join(directory,'session.json'),JSON.stringify(s));
  await writeFile(path.join(directory,'assets','fixture.png'),Buffer.from('changed'));await assert.rejects(run(['export','--session',directory,'--output',path.join(directory,'second')]),/Asset changed/);
  assert.equal((await readdir(directory)).includes('second'),false);
 });

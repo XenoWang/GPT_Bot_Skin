@@ -10,7 +10,7 @@
 
 盘点支持受管原生窗口测量与恢复：客户端不支持 CDP 窗口接口时按已校验进程定位窗口，目标有歧义则停止。自定义控件颜色支持显式文字、边框及宽度，浅色底配黑字时保持所选底色；对比不足明确报错。代码和状态语义色保留，具体字段见创作参考。
 
-设置页可通过 `capture-settings` 一次批量补采。实际入口别名与侧栏标签使用版本配置维护，隐藏或不可交互的缓存节点不计为有效导航；别名变化只失效相关记录。已知外部内容入口不会被点击，意外离开本地设置表面时停止补采。受保护状态、外部内容和缺失入口保留明确缺口，恢复失败阻止预览。
+设置页可通过 `capture-settings` 一次批量补采。实际入口别名与侧栏标签使用版本配置维护，隐藏或不可交互的缓存节点不计为有效导航；别名变化只失效相关记录。个人资料这类独立原生页面由用户或允许的界面工具打开后单独采样，自动批量不会点击；离开设置不等于外部网页。已知外部内容入口不会被点击，意外离开本地设置表面时停止补采。受保护状态、外部内容和缺失入口保留明确缺口，恢复失败阻止预览。
 
 ### 从本包启动
 
@@ -56,7 +56,7 @@ Authoring proceeds from measured diagrams through form/language, image source, a
 
 Inventory falls back to verified native Windows placement when the CDP window interface is unavailable, and restores the original placement. Ambiguous windows and identity failures stop the operation. Custom control colors support explicit foregrounds, border colors and widths; requested surfaces are retained or rejected for contrast, while semantic foregrounds remain native.
 
-Once native Settings is open, `capture-settings` batches reachable native tabs and attempts to restore the original tab. Known external-content entries are not clicked; unexpected departures from Settings stop the batch. Navigation aliases and sidebar labels live in versioned configuration. Hidden or inert entries cannot prove navigation, and changed aliases invalidate only affected observations. Protected states, external content and missing entries remain explicit gaps; failed restoration blocks preview.
+Once native Settings is open, `capture-settings` batches reachable native tabs and attempts to restore the original tab. Standalone native pages such as Profile require opening through permitted UI tools and separate structural capture; leaving Settings does not imply external content. Known external-content entries are not clicked; unexpected departures from Settings stop the batch. Navigation aliases, standalone surface selectors and sidebar labels live in versioned configuration. Hidden or inert entries cannot prove navigation, and changed aliases invalidate only affected observations. Protected states, external content and missing entries remain explicit gaps; failed restoration blocks preview.
 
 Creator translations live in `locales/`; add a locale JSON file without changing source. Runtime panel translations are in `runtime/locales/`. PNG/JPEG are the portable image inputs; other formats depend on installed codecs. No automatic dependency installation or policy bypass occurs.
 

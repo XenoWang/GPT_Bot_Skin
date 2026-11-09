@@ -35,12 +35,12 @@ class CreatorContracts(unittest.TestCase):
 
     def test_creator_state_geometry_locales_export_and_preview_contracts(self):
         env = {**os.environ, 'CODEX_THEME_TEST_ROOT': str(self.folder)}
-        subprocess.run(['node', '--test', 'tests/creator.test.mjs', 'tests/authoring.test.mjs'], cwd=ENGINE, env=env, check=True)
+        subprocess.run(['node', '--test', 'tests/creator.test.mjs', 'tests/authoring.test.mjs', 'tests/contrast-audit.test.mjs', 'tests/theme-catalog.test.mjs'], cwd=ENGINE, env=env, check=True)
 
     def test_new_script_syntax_without_running_native_entrypoints(self):
         scripts = list((REPO / 'Skin_Creator' / 'scripts').glob('*.mjs'))
         scripts += [ENGINE / 'renderer' / 'authoring.mjs']
-        scripts += [ENGINE / 'scripts' / name for name in ['region-capabilities.mjs', 'coverage-runner.mjs', 'managed-page.mjs', 'sync-shared-runtime.mjs']]
+        scripts += [ENGINE / 'scripts' / name for name in ['region-capabilities.mjs', 'coverage-runner.mjs', 'managed-page.mjs', 'sync-shared-runtime.mjs', 'contrast-audit.mjs']]
         for script in scripts:
             subprocess.run(['node', '--check', str(script)], cwd=REPO, check=True)
         command = r'''$failures=@(); foreach($name in @('Create-Skin.ps1','scripts\image-codec.ps1')) { $tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $env:CREATOR_ROOT $name),[ref]$tokens,[ref]$errors)|Out-Null; $failures+=@($errors) }; if($failures.Count){$failures|ForEach-Object {Write-Error $_.Message}; exit 1}'''

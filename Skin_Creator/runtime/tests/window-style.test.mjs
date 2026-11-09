@@ -133,7 +133,7 @@ test('invalid explicit styles and equal-color contrast fail without altering acc
 
 test('border-only changes invalidate complete acceptance while keeping accepted background',()=>{
  const s=skin();choosePalette(s,pink());const background=backgroundRevision(s),complete=completeRevision(s);
- s.previews.complete={revision:complete,applied:true,uncoveredScene:false};confirm(s,'complete',complete,'Synthetic fixture acceptance');
+ s.previews.complete={revision:complete,applied:true,uncoveredScene:false,contrast:{passed:true}};confirm(s,'complete',complete,'Synthetic fixture acceptance');
  choosePalette(s,{...pink(),style:{...pink().style,borderWidth:2}});
  assert.equal(backgroundRevision(s),background);assert.equal(s.confirmations.background.revision,background);
  assert.notEqual(completeRevision(s),complete);assert.equal(s.confirmations.complete,undefined);assert.equal(s.previews.complete,undefined);
@@ -144,4 +144,14 @@ test('new errors and capability labels remain in selectable language files',asyn
  assert.equal(zh.messages['property.borderWidth'],'边框宽度');assert.equal(en.messages['property.borderWidth'],'Border width');
  assert.match(localizeError(zh,'EXPLICIT_CONTRAST_CONFLICT: composer'),/对比度不足.*composer/);
  assert.match(localizeError(zh,'No unambiguous native window; focus the intended Codex window and retry'),/无法唯一确定窗口/);
+});
+
+test('native region overrides and transparent white replies preserve the accepted scene',()=>{
+ const s=skin();s.selection.regions.push('assistantMessages','buttons','scrollbars');s.catalog.regions.push(...['assistantMessages','buttons','scrollbars'].map(key=>({key,requiresAdapterReview:false})));s.foregrounds.assistantMessages=['#FFFFFF'];s.foregrounds.buttons=['#FFFFFF'];
+ const background=backgroundRevision(s);s.previews.background={revision:background,applied:true,uncoveredScene:false};confirm(s,'background',background,'Synthetic scope acceptance');
+ choosePalette(s,{...pink(),regionStyles:{assistantMessages:{surface:null,text:'#FFFFFF',borderWidth:0},buttons:null,scrollbars:null,codeBlocks:null}});
+ const m=buildManifest(s,'complete');assert.equal(m.regions.assistantMessages.style.surfaceOpacity,0);assert.equal(m.regions.assistantMessages.style.text,'#FFFFFF');assert.equal(m.regions.assistantMessages.style.borderWidth,0);assert.equal(m.regions.buttons,undefined);assert.equal(m.regions.scrollbars,undefined);assert.equal(m.regions.codeBlocks,undefined);
+ assert.equal(backgroundRevision(s),background);assert.equal(s.confirmations.background.revision,background);
+ const saved=structuredClone(s);assert.throws(()=>choosePalette(s,{mode:'custom',colors:['#F8CCD7'],regionStyles:{assistantMessages:{surface:null}}}),/explicit foreground/);assert.deepEqual(s,saved);
+ assert.throws(()=>choosePalette(s,{...pink(),regionStyles:{chat:null}}),/selected control region/);assert.deepEqual(s,saved);
 });

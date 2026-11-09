@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 2,
+  "id": "spring-sakura",
+  "name": "春日樱花",
+  "regions": {
+    "titlebar": {
+      "enabled": true
+    },
+    "navigation": {
+      "enabled": true
+    },
+    "sidebar": {
+      "enabled": true
+    },
+    "chatHeader": {
+      "enabled": true
+    },
+    "chat": {
+      "enabled": true
+    },
+    "rightPanel": {
+      "enabled": true
+    },
+    "bottomPanel": {
+      "enabled": true
+    },
+    "tabs": {
+      "enabled": true
+    },
+    "pageHeaders": {
+      "enabled": true
+    },
+    "userMessages": {
+      "enabled": true,
+      "style": {
+        "surface": "#F8CCD7",
+        "surfaceOpacity": 1,
+        "border": "#D98BA4",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#000000"
+      }
+    },
+    "assistantMessages": {
+      "enabled": true,
+      "style": {
+        "surface": "#F8CCD7",
+        "surfaceOpacity": 0,
+        "borderWidth": 0,
+        "text": "#FFFFFF",
+        "border": "#D98BA4",
+        "borderOpacity": 1
+      }
+    },
+    "composer": {
+      "enabled": true,
+      "style": {
+        "surface": "#FFE4EC",
+        "surfaceOpacity": 1,
+        "border": "#D98BA4",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#000000"
+      }
+    },
+    "menus": {
+      "enabled": true,
+      "style": {
+        "surface": "#FFE4EC",
+        "surfaceOpacity": 1,
+        "border": "#D98BA4",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#000000"
+      }
+    },
+    "dialogs": {
+      "enabled": true,
+      "style": {
+        "surface": "#FFE4EC",
+        "surfaceOpacity": 1,
+        "border": "#D98BA4",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#000000"
+      }
+    },
+    "questions": {
+      "enabled": true,
+      "style": {
+        "surface": "#FFE4EC",
+        "surfaceOpacity": 1,
+        "border": "#D98BA4",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#000000"
+      }
+    },
+    "inputs": {
+      "enabled": true,
+      "style": {
+        "surface": "#FFE4EC",
+        "surfaceOpacity": 1,
+        "border": "#D98BA4",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#000000"
+      }
+    }
+  },
+  "scene": {
+    "scope": "window",
+    "background": {
+      "asset": "assets/scene.png",
+      "blackOverlay": 0.5,
+      "subject": [
+        0.02,
+        0.06,
+        0.95,
+        0.95
+      ],
+      "fit": "subject-safe",
+      "maxScale": 1,
+      "blurFill": false
+    },
+    "regions": [
+      "titlebar",
+      "navigation",
+      "sidebar",
+      "chatHeader",
+      "chat",
+      "rightPanel",
+      "bottomPanel",
+      "tabs",
+      "pageHeaders"
+    ],
+    "placements": [
+      {
+        "viewport": [
+          1342,
+          756
+        ],
+        "pixelRatio": 1,
+        "frame": [
+          0,
+          0,
+          1342,
+          756
+        ],
+        "source": [
+          1920,
+          1032
+        ],
+        "image": [
+          -28.130232558139532,
+          0,
+          1406.5116279069766,
+          756
+        ]
+      },
+      {
+        "viewport": [
+          1920,
+          1032
+        ],
+        "pixelRatio": 1,
+        "frame": [
+          0,
+          0,
+          1920,
+          1032
+        ],
+        "source": [
+          1920,
+          1032
+        ],
+        "image": [
+          0,
+          0,
+          1920,
+          1032
+        ]
+      }
+    ]
+  }
+}

@@ -30,7 +30,8 @@
       "[data-markdown-text-style=\"assistant-message\"]:not(:empty)"
     ],
     "toolCards": [
-      "[data-tool-call]"
+      "[data-tool-call]",
+      "[data-app-shell-main-surface] div:has(> [class~='group/activity-header'] > button[aria-expanded])"
     ],
     "composer": [
       "[data-composer-surface-variant]:not([data-composer-utility-bar-variant='home'])",
@@ -118,9 +119,7 @@
     "footer": ":scope > .relative.shrink-0.w-9",
     "reference": "[data-sidebar-destination='builtin:home']"
   },
-  "unconfirmedRegions": [
-    "toolCards"
-  ],
+  "unconfirmedRegions": [],
   "transparentSurfaces": {
     "chat": [
       "[data-role='messages-scroll']",
@@ -298,7 +297,8 @@
     ".suggestionMenu-EeXWU_ [data-list-navigation-item].bg-primary-ghost-hover"
   ],
   "outermostRegions": [
-    "inputs"
+    "inputs",
+    "attachments"
   ],
   "transparentPseudoTargets": {
     "chat": [

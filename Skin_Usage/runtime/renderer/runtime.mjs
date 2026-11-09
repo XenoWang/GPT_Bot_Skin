@@ -1,5 +1,8 @@
 import {validatePack,validateManifest,requiredAssets,fitImage,declarations,sidebarSections,decorationCss,rgba,chatSceneFit,sidebarsCollapsed,topbarGap,transcriptClipBottom,panoramaFit,opacityOptions,withOpacityOverrides,transcriptFadeStops,regionLabel,skinLanguage,skinText,skinError,skinDisplayName,validateTranslations,scenePlacement} from './core.mjs';
 const KEY='__codexAppearanceV1',MARK='data-codex-appearance',OWN='data-codex-appearance-owned';
+// Native transparent hit areas keep their original geometry and affordance.
+const HIT_ONLY_BUTTONS='[data-app-shell-main-surface] nav .vertical-scroll-fade-mask button,[class~="group/activity-header"] > button[aria-expanded]';
+const NEUTRAL_TEXT_REGIONS=new Set(['buttons','sidebarRows','composer','menus','dialogs','settings','inputs','questions','pageCards','tooltips','tabs']);
 const BASE=new URL('.',import.meta.url);
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 export class Store {
@@ -111,7 +114,7 @@ export class Appearance {
    if(spec.excludeWithin&&scope.closest(spec.excludeWithin))continue;
    const r=scope.getBoundingClientRect();if(r.width<=0||r.height<=0)continue;
    const visible=n=>{const b=n.getBoundingClientRect();return b.width>0&&b.height>0&&getComputedStyle(n).visibility!=='hidden';};
-   const composerRoot=spec.composerScope?scope.closest(spec.composerScope):scope;const composer=[...(composerRoot?.querySelectorAll(spec.composer)??[])].find(visible)??null,fade=spec.topFade?[...(scope.closest(spec.topFade.scope)?.querySelectorAll(spec.topFade.selector)??[])].find(visible)??null:null;if(!composer&&!fade)continue;
+   const composerRoot=spec.composerScope?scope.closest(spec.composerScope):scope,control=[...(composerRoot?.querySelectorAll(spec.composer)??[])].find(visible)??null,stack=control?.closest('[data-codex-composer-reference-drop-target]');const composer=stack&&visible(stack)?stack:control,fade=spec.topFade?[...(scope.closest(spec.topFade.scope)?.querySelectorAll(spec.topFade.selector)??[])].find(visible)??null:null;if(!composer&&!fade)continue;
    for(const content of scope.querySelectorAll(spec.content))if(visible(content)&&(!composer||!content.contains(composer))&&(!fade||!content.contains(fade)))desired.set(content,{scope,composer,fade,fadeMode:spec.topFade?.measure??'element',globalScroll:spec.globalScroll===true});
   }
   for(const [content,v]of this.clips){const next=desired.get(content);if(!next||next.scope!==v.scope||next.composer!==v.composer||next.fade!==v.fade||next.fadeMode!==v.fadeMode||next.globalScroll!==v.globalScroll){v.remove();this.clips.delete(content);}}
@@ -130,7 +133,7 @@ export class Appearance {
   this.syncLanguageWatch();if(this.languagePreference==='auto'){const language=skinLanguage('auto',this.appLanguage(),this.translations);if(language!==this.language){this.language=language;this.localizePanel();this.renderList();}}
   this.syncManager();
   const hover=this.pack?.manifest.hover,dialogRule=this.pack?.manifest.regions.dialogs;
-  const popupCss=dialogRule?.enabled?`dialog{${declarations(dialogRule.style)}}`+(dialogRule.style?.surface?`dialog option{background-color:${rgba(dialogRule.style.surface,dialogRule.style.surfaceOpacity??1)}!important}button,select,input[type=number]{${declarations({surface:dialogRule.style.surface,surfaceOpacity:dialogRule.style.surfaceOpacity,border:dialogRule.style.border,borderOpacity:dialogRule.style.borderOpacity})}}`:''):'';
+  const popupCss=dialogRule?.enabled?`dialog{${declarations(dialogRule.style)}}`+(dialogRule.style?.surface?`dialog option{background-color:${rgba(dialogRule.style.surface,dialogRule.style.surfaceOpacity??1)}!important}button,select,input[type=number]{${declarations({surface:dialogRule.style.surface,surfaceOpacity:dialogRule.style.surfaceOpacity,border:dialogRule.style.border,borderOpacity:dialogRule.style.borderOpacity,text:dialogRule.style.text})}}`:'')+(dialogRule.style?.text?`:host,p,small{color:${dialogRule.style.text}!important}`:''):'';
   const panelCss=this.panelBaseCss+popupCss+(hover?`input[type=range]{accent-color:${hover.surface}}button:not(:disabled):hover,select:not(:disabled):hover{${declarations(hover)}}`:'');for(const s of this.panelStyles??[])if(s.textContent!==panelCss)s.textContent=panelCss;
   if(!this.pack||!document.querySelector(this.adapter.gate)){this.clear();this.counts={};this.diagnostics.textContent=this.t(this.pack?'shellUnknown':'originalRestored');return;}
   // Cached native nodes can return after an older engine stopped tracking them.
@@ -139,9 +142,17 @@ export class Appearance {
   const desired=new Map(),visualNodes=new Set(),clearNodes=new Set();
   const css=['[data-codex-appearance-bg]{isolation:isolate!important;background-color:transparent!important;background-image:none!important}[data-codex-appearance-static]{position:relative!important}[data-codex-appearance-clear]{background-color:transparent!important;background-image:none!important}[data-codex-appearance-clip]{clip-path:inset(0 0 var(--codex-appearance-clip-bottom,0px) 0)!important}[data-codex-appearance-fade]{mask-image:linear-gradient(to bottom,transparent var(--codex-appearance-fade-start,0px),#000 var(--codex-appearance-fade-end,0px))!important;mask-repeat:no-repeat!important;mask-size:100% 100%!important}'];this.counts={};
   for(const [name,rule]of Object.entries(this.pack.manifest.regions)){
-    if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,visual=background||rule.gradient||rule.ornament;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`));if(visual||this.adapter.outermostRegions?.includes(name))nodes=nodes.filter(n=>!nodes.some(parent=>parent!==n&&parent.contains(n)));this.counts[name]=nodes.length;
+    if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,visual=background||rule.gradient||rule.ornament;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`)&&(name!=='buttons'||!n.matches?.(HIT_ONLY_BUTTONS)));
+    if(name==='dialogs')nodes=[...new Set(nodes.map(n=>n.matches?.('[data-slot="popover-content"]')?n.querySelector('[class~="group/summary-panel"]')??n:n))];
+    if(visual||this.adapter.outermostRegions?.includes(name))nodes=nodes.filter(n=>!nodes.some(parent=>parent!==n&&parent.contains(n)));this.counts[name]=nodes.length;
     for(const n of nodes){if(!desired.has(n))desired.set(n,new Set());desired.get(n).add(name);this.tag(n,name);if(visual){visualNodes.add(n);if(!this.mounted.has(n)){if(background)this.mountBackground(n,name,background,shared);else this.mountDecoration(n,name,rule);}else this.mounted.get(n)?.update();}}
    const selector=`[${MARK}~="${name}"]`,style=rule.gradient?Object.fromEntries(Object.entries(rule.style??{}).filter(([key])=>!['surface','surfaceOpacity'].includes(key))):rule.style;if(name==='scrollbars'){const s=rule.style??{};if(s.text&&s.surface)css.push(`${selector}{scrollbar-color:${s.text} ${s.surface}!important}`);}else css.push(`${selector}{${declarations(style)}}`);
+    if(name==='dialogs'&&style?.surface)css.push(`${selector}[class~="group/summary-panel"]{--color-surface-elevated-secondary:${rgba(style.surface,style.surfaceOpacity??1)}!important}`);
+    if(style?.text){
+     if(NEUTRAL_TEXT_REGIONS.has(name))css.push(`${selector}{${['--color-text','--color-text-secondary','--color-text-tertiary','--color-codex-description','--button-text-color','--button-text-color-hover'].map(key=>key+':'+style.text+'!important').join(';')}}`);
+     if(name==='userMessages')css.push(`${selector} [data-markdown-text-tone="user-message"]{color:${style.text}!important}`);
+     if(name==='composer')css.push(`${selector} .ProseMirror{color:${style.text}!important;caret-color:${style.text}!important}${selector} .ProseMirror [data-placeholder]::before{color:${rgba(style.text,.6)}!important}`);
+    }
    if(name==='menus'&&this.adapter.profileAvatarSlot)css.push(`${selector} ${this.adapter.profileAvatarSlot}{--icon-leading-size:calc(var(--spacing,4px)*5)!important}`);
    const backplate=this.adapter.gradientBackplates?.[name];if(backplate&&rule.gradient)css.push(`${backplate}{background-image:${decorationCss({gradient:rule.gradient,style:rule.style}).backgroundImage}!important;background-size:max(0px,calc(100% - var(--app-shell-navigation-rail-width,52px))) 100%!important;background-position:right top!important;background-repeat:no-repeat!important}${backplate}:dir(rtl){background-position:left top!important}`);
    if(rule.style?.surface&&this.adapter.clearSurfaceImages?.includes(name))css.push(`${selector}{background-image:none!important}`);
@@ -153,11 +164,11 @@ export class Appearance {
   for(const [n,old]of this.oldMarks){const names=desired.get(n);if(!names){if(old===null)n.removeAttribute(MARK);else n.setAttribute(MARK,old);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');this.oldMarks.delete(n);}else{const tokens=new Set((old??'').split(' ').filter(Boolean));for(const name of names)tokens.add(name);n.setAttribute(MARK,[...tokens].join(' '));if(!visualNodes.has(n)){n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}}}
   for(const [n,v]of this.mounted)if(!visualNodes.has(n)){v.ro?.disconnect();v.layer.remove();this.mounted.delete(n);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}
   for(const n of this.transparent)if(!clearNodes.has(n))n.removeAttribute('data-codex-appearance-clear');this.transparent=clearNodes;
-  if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}{${declarations(hover)}}`);}
+   if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(${HIT_ONLY_BUTTONS}):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}{${declarations(hover)}}`);}
   this.syncTranscriptClips();const text=css.join('\n');if(this.style.textContent!==text)this.style.textContent=text;this.diagnostics.textContent=this.t('diagnostics')+Object.entries(this.counts).map(([k,v])=>`${regionLabel(k,this.language,this.translations)} ${v}`).join(' · ');
  }
  mountDecoration(node,name,rule){
-  const layer=el('div');layer.setAttribute(OWN,`decoration-${name}`);layer.setAttribute('aria-hidden','true');layer.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1;border-radius:inherit';Object.assign(layer.style,decorationCss({gradient:rule.gradient,style:rule.style}));
+  const layer=el('div');layer.setAttribute(OWN,`decoration-${name}`);layer.setAttribute('aria-hidden','true');layer.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1;border-radius:inherit;-webkit-app-region:initial!important';Object.assign(layer.style,decorationCss({gradient:rule.gradient,style:rule.style}));
   if(rule.ornament){const ornament=el('div');ornament.setAttribute('data-codex-appearance-part','ornament');ornament.style.cssText='position:absolute;inset:0;pointer-events:none';ornament.style.opacity=String(rule.ornament.opacity);Object.assign(ornament.style,decorationCss({ornament:{...rule.ornament,opacity:1}},this.pack?.assets??{}));layer.append(ornament);}
   if(getComputedStyle(node).position==='static')node.setAttribute('data-codex-appearance-static','');node.setAttribute('data-codex-appearance-bg','');node.prepend(layer);
   let ro=null,update=()=>{};
@@ -169,7 +180,7 @@ export class Appearance {
   this.mounted.set(node,{layer,ro,update});update();
  }
   mountBackground(node,name,bg,shared=false){
-  const layer=el('div');layer.setAttribute(OWN,`background-${name}`);layer.setAttribute('aria-hidden','true');layer.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1;border-radius:inherit';
+  const layer=el('div');layer.setAttribute(OWN,`background-${name}`);layer.setAttribute('aria-hidden','true');layer.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1;border-radius:inherit;-webkit-app-region:initial!important';
   const layout=name==='sidebar'?this.pack.manifest.sidebarLayout:null;
   const chatLayout=name==='chat'?this.pack.manifest.chatLayout:null;
   const makePart=(background,label)=>{
@@ -212,13 +223,13 @@ export class Appearance {
     let sharedHeight=sections.bodyHeight;
     if(shared){
      const rect=node.getBoundingClientRect(),[sw,sh]=this.dimensions[bg.asset];
-     const shown=n=>n.getBoundingClientRect().width>0&&n.getBoundingClientRect().height>0&&getComputedStyle(n).visibility!=='hidden';
+     const shown=n=>n.getBoundingClientRect().width>0&&n.getBoundingClientRect().height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');
      const mainScope=this.pack.manifest.scene.scope==='main',rail=mainScope?[...document.querySelectorAll(this.adapter.chatLayoutState?.rail??'[data-app-navigation-rail]')].find(shown)?.getBoundingClientRect():null,main=mainScope?[...document.querySelectorAll('[data-app-shell-main-surface]')].find(shown)?.getBoundingClientRect():null;
      const sceneLeft=rail?(rail.left<innerWidth/2?rail.right:0):0,sceneRight=rail&&rail.left>=innerWidth/2?rail.left:innerWidth,sceneTop=main?.top??0;
      this.sceneCache??=new Map();const placement=scenePlacement(this.pack.manifest.scene,[innerWidth,innerHeight],devicePixelRatio,[sceneLeft,sceneTop,sceneRight-sceneLeft,innerHeight-sceneTop],[sw,sh],this.sceneCache);
      sceneFit={...placement,x:placement.x-rect.left,y:placement.y-rect.top};
      layer.dataset.sceneCovered=String(sceneFit.covered);layer.dataset.sharedScene='true';
-     if(name==='titlebar'&&this.adapter.titlebarGap){const spec=this.adapter.titlebarGap,scope=node.closest(spec.scope)??document,refs=spec.references.flatMap(s=>[...scope.querySelectorAll(s)]).map(n=>n.getBoundingClientRect().top);const gap=topbarGap(rect.bottom,refs,spec.maxGap);sharedHeight+=gap;layer.style.bottom=-gap+'px';}
+     if(name==='titlebar'&&this.adapter.titlebarGap){const spec=this.adapter.titlebarGap,scope=node.closest(spec.scope)??document,refs=spec.references.flatMap(s=>[...scope.querySelectorAll(s)]).filter(shown).map(n=>n.getBoundingClientRect().top);const gap=topbarGap(rect.bottom,refs,spec.maxGap);sharedHeight+=gap;layer.style.bottom=-gap+'px';}
     }
     body.place(sections.bodyTop,separateBody?0:sharedHeight,sceneFit);splitBody?.place(sections.bodyTop,separateBody?sections.bodyHeight:0);header?.place(0,sections.headerHeight);
    if(chatLayout?.mode==='panorama')layer.dataset.chatMode='panorama';

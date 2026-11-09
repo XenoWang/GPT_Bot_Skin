@@ -11,6 +11,7 @@ import {inventory,captureSettings,authoringControls,refreshNavigationEvidence} f
 import {makeCatalog} from '../runtime/scripts/inspect-ui-regions.mjs';
 import {managedPage} from '../runtime/scripts/managed-page.mjs';
 import {installAuthoring} from '../runtime/renderer/authoring.mjs';
+import {auditControlContrast} from '../runtime/scripts/contrast-audit.mjs';
 import {validatePack,requiredAssets} from '../runtime/renderer/core.mjs';
 import {loadLocales,selectLanguage,localeBundle,translate,localizeError} from './localization.mjs';
 import {pythonBackend,localeCommand} from '../runtime/scripts/host-tools.mjs';
@@ -81,6 +82,15 @@ function foregroundSamples(report){
  const colors={};for(const sample of report.samples)for(const region of sample.regionCoverage)for(const n of region.samples??[]){if(!n.visible)continue;const match=/^rgba?\(\s*([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(n.foreground??'');if(!match||match[4]!==undefined&&Number(match[4])!==1)continue;const color=hex(match.slice(1,4).map(Number));(colors[region.key]??=[]).push(color);}
  return Object.fromEntries(Object.entries(colors).map(([k,values])=>[k,[...new Set(values)]]));
 }
+async function recordContrast(directory,session,report,slot='current'){
+ if(!/^[a-z0-9-]{1,40}$/.test(slot)||report.revision!==completeRevision(session)||!report.runtimeRevision||typeof report.passed!=='boolean')throw new Error('Invalid or stale control contrast audit');
+ const binding=digest([report.revision,report.runtimeRevision]);
+ if(session.controlContrast?.binding!==binding)session.controlContrast={binding,revision:report.revision,runtimeRevision:report.runtimeRevision,states:{}};
+ const artifact='contrast-'+slot+'-'+digest(report).slice(0,12)+'.json';await atomicJSON(path.join(directory,artifact),report);
+ session.controlContrast.states[slot]={passed:report.passed,notApplicable:report.notApplicable,checkedText:report.checkedText,checkedIcons:report.checkedIcons,violations:report.violations.length,truncated:report.truncated,skipped:report.skipped,artifact};
+ const values=Object.values(session.controlContrast.states);
+ return {passed:values.every(v=>v.passed),notApplicable:values.every(v=>v.notApplicable),states:Object.keys(session.controlContrast.states),checkedText:values.reduce((n,v)=>n+v.checkedText,0),checkedIcons:values.reduce((n,v)=>n+v.checkedIcons,0),violations:values.reduce((n,v)=>n+v.violations,0)};
+}
 export async function run(argv=process.argv.slice(2)){
  const locales=await loadLocales(),systemLanguage=selectLanguage(locales,await systemLocale());currentLocale=localeBundle(locales,systemLanguage);
  const args=parse(argv),directory=await sessionDirectory(args.session),sessionFile=path.join(directory,'session.json'),release=await lock(directory);
@@ -93,10 +103,10 @@ export async function run(argv=process.argv.slice(2)){
   const save=()=>atomicJSON(sessionFile,session);
   let result;
   switch(args.command){
-   case 'start':case 'inventory':case 'capture':case 'capture-settings':{
+   case 'start':case 'inventory':case 'capture':case 'capture-settings':case 'capture-shell':{
     if(!args.state)throw new Error('Inventory requires --state; start the bundled managed runtime first');
     const before=session.inventory?.binding,measurement=JSON.stringify(session.inventory?.measurement);
-    const options={statePath:args.state,targetId:args.target,previous:session.inventory,manualState:args.command==='capture'?args.slot:null,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}};
+    const options={statePath:args.state,targetId:args.target,previous:session.inventory,manualState:['capture','capture-shell'].includes(args.command)?args.slot:null,shellOnly:args.command==='capture-shell',authorizationNote:args.note,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}};
     const data=await (args.command==='capture-settings'?captureSettings(options):inventory(options));
     session.inventory=data.report;const labels=Object.fromEntries(await Promise.all(['en','zh-CN'].map(async code=>[code,JSON.parse(await readFile(path.join(ROOT,'runtime','locales',code+'.json'),'utf8'))])));
     session.catalog=makeCatalog(data.report,labels);session.foregrounds=foregroundSamples(data.report);
@@ -151,13 +161,20 @@ export async function run(argv=process.argv.slice(2)){
    case 'preview':{
     const stage=args.stage??'background';if(!['background','complete'].includes(stage))throw new Error('Invalid preview stage');
     const pack=await draftPack(directory,session,stage),revision=stage==='background'?backgroundRevision(session):completeRevision(session);
-    result=await bridge(args,async(page,version)=>{if(version!==session.inventory.clientVersion)throw new Error('Re-inventory after a version change');return page.evaluate('window.__codexAppearanceV1.creator.preview('+JSON.stringify(pack)+','+JSON.stringify(revision)+','+JSON.stringify(stage)+','+JSON.stringify(currentLocale)+')');});
+    result=await bridge(args,async(page,version)=>{if(version!==session.inventory.clientVersion)throw new Error('Re-inventory after a version change');const receipt=await page.evaluate('window.__codexAppearanceV1.creator.preview('+JSON.stringify(pack)+','+JSON.stringify(revision)+','+JSON.stringify(stage)+','+JSON.stringify(currentLocale)+')');if(stage==='complete'){await page.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');receipt.contrast=await page.evaluate('('+auditControlContrast.toString()+')()');}return receipt;});
+    if(stage==='complete')result.contrast=await recordContrast(directory,session,result.contrast);
     if(!result?.applied||result.revision!==revision||result.stage!==stage)throw new Error('Preview receipt mismatch');session.previews[stage]=result;
     await atomicJSON(path.join(directory,stage+'.manifest.json'),pack.manifest);break;
+   }
+   case 'contrast':{
+    if(session.previews.complete?.revision!==completeRevision(session))throw new Error('Preview the complete Skin before auditing contrast');
+    const report=await bridge(args,page=>page.evaluate('('+auditControlContrast.toString()+')()'));
+    result=await recordContrast(directory,session,report,args.slot??'current');session.previews.complete.contrast=result;break;
    }
    case 'restore':result=await bridge(args,page=>page.evaluate('window.__codexAppearanceV1.creator.restore()'));session.previews={};break;
    case 'export':{
     if(session.confirmations.complete?.revision!==completeRevision(session))throw new Error('Confirm the current complete preview before exporting');
+    if(session.previews.complete?.contrast?.passed!==true)throw new Error('Resolve actual control contrast issues before accepting or exporting');
     const pack=await draftPack(directory,session,'complete');
     const manifest=Buffer.from(JSON.stringify(pack.manifest,null,2)+'\n'),images=Object.entries(pack.assets).map(([name,url])=>[name,Buffer.from(url.split(',')[1],'base64')]);
     if(manifest.length>128*1024||images.length+1>100||manifest.length+images.reduce((n,[,b])=>n+b.length,0)>48*1024*1024)throw new Error('Export exceeds import limits');
@@ -171,7 +188,7 @@ export async function run(argv=process.argv.slice(2)){
     for(const [name,bytes]of images)if(digest(await readFile(path.join(destination,name)))!==digest(bytes))throw new Error('Export readback failed');
     session.export={revision:completeRevision(session),path:destination,at:new Date().toISOString()};result={...session.export,files:images.length+1,excludedStates:session.selection.excludedStates};break;
    }
-   default:throw new Error('Commands: start, inventory, capture, capture-settings, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, restore, export');
+   default:throw new Error('Commands: start, inventory, capture, capture-settings, capture-shell, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, contrast, restore, export');
   }
   if(args.command!=='status'){session.events.push({command:args.command,at:new Date().toISOString()});await save();}
   if(result.slots)result.slots=result.slots.map(slot=>({...slot,description:t('slot.'+slot.id)}));

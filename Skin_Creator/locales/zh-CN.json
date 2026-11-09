@@ -62,7 +62,9 @@
     "property.scrollbarThumb": "滚动条滑块",
     "reason.protected-state": "受保护状态，不读取内容",
     "reason.navigation-mapping-changed": "入口对应关系已变化，需要补采",
-    "reason.external-content": "独立嵌入内容，不进入采集",
+    "reason.external-content": "外部内容，不进入采集",
+    "reason.manual-native-surface": "请打开独立原生页面后采样",
+    "catalog.shellOnly": "仅采集已授权的外层布局；内容与控件未验收",
     "reason.settings-surface-lost": "已离开本地设置表面，停止补采"
   },
   "errors": {
@@ -99,6 +101,11 @@
     "Keep sessions under the package .local/creator/ or work/ directory": "会话请保存在本包的 .local/creator/ 或 work/ 目录中。",
     "Inventory requires --state; start the bundled managed runtime first": "盘点需要 --state；请先通过包内启动入口建立受管会话。",
     "Invalid explicit control style": "显式控件样式包含不支持的字段或格式。",
+    "Transparent controls require an explicit foreground": "透明控件需要明确指定前景文字颜色。",
+    "Preview the complete Skin before auditing contrast": "请先显示当前完整皮肤预览，再检查实际对比度。",
+    "Contrast inspection is unavailable on protected settings pages": "受保护设置页不允许执行内层对比度检查。",
+    "Invalid or stale control contrast audit": "控件对比度检查无效或已过期。",
+    "Resolve actual control contrast issues before accepting or exporting": "请先解决实际文字或图标的对比度问题，再确认整体或导出。",
     "Border width must be within 0..8": "边框宽度必须在 0–8 像素之间。",
     "Explicit colors must use #RRGGBB": "显式颜色必须使用 #RRGGBB 格式。",
     "Invalid palette options": "配色配置包含不支持的字段。",
@@ -125,7 +132,10 @@
     "Batch capture requires the same verified inventory window": "批量补采必须使用原盘点中已校验的同一窗口。",
     "Protected state is not inspected: *": "不采集受保护状态：{detail}",
     "Settings navigation restoration was not observed": "未确认恢复原设置页，请检查界面后再继续。",
-    "External content is not inspected: *": "不采集独立嵌入内容：{detail}"
+    "External content is not inspected: *": "不采集外部内容：{detail}",
+    "Shell capture requires a configured state and actual user authorization note": "外层采样需要配置支持的状态和真实用户授权说明",
+    "Protected settings shell was not structurally observed": "未实际观察到受保护设置页的外层容器",
+    "Commands: *": "可用命令：{detail}"
   },
   "regions": {
     "titlebar": "顶部栏",

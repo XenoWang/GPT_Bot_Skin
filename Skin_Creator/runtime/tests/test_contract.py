@@ -150,12 +150,30 @@ class Contracts(unittest.TestCase):
         usage=REPO/'Skin_Usage'
         receipt=json.loads((usage/'references/runtime-files.json').read_text(encoding='utf-8'))['files']
         self.assertGreater(len(receipt),20)
+        # Package data is deliberately different; common implementation bytes remain exact.
+        package_data={'theme-catalog.json','themes/spring-sakura/manifest.json','themes/spring-sakura/assets/scene.png'}
+        derived={'dist/cdp-payload.js','dist/cdp-payload.json'}
+        catalog=json.loads((usage/'runtime/theme-catalog.json').read_text(encoding='utf-8'))
+        self.assertEqual(catalog,{'schemaVersion':1,'skinIds':['kurumi-twilight','neutral-dark','spring-sakura']})
+        sakura=json.loads((usage/'runtime/themes/spring-sakura/manifest.json').read_text(encoding='utf-8'))
+        self.assertEqual(sakura['id'],'spring-sakura');self.assertEqual(sakura['scene']['scope'],'window');self.assertEqual(sakura['scene']['background']['blackOverlay'],0.5)
+        self.assertEqual(sakura['regions']['assistantMessages']['style']['surfaceOpacity'],0)
+        self.assertEqual(sakura['regions']['assistantMessages']['style']['text'],'#FFFFFF')
+        self.assertNotIn('buttons',sakura['regions'])
+        self.assertEqual(set(p.name for p in (usage/'runtime/themes/spring-sakura').iterdir()),{'manifest.json','assets'})
+        self.assertNotEqual((usage/'runtime/dist/cdp-payload.js').read_bytes(),(ROOT/'dist/cdp-payload.js').read_bytes())
         for name,digest in receipt.items():
             rel=Path(name);self.assertFalse(rel.is_absolute());self.assertNotIn('..',rel.parts)
             self.assertEqual(hashlib.sha256((usage/'runtime'/rel).read_bytes()).hexdigest(),digest,name)
             if name=='runtime-profile.json':
                 self.assertEqual(json.loads((usage/'runtime'/rel).read_text(encoding='utf-8')),{'schemaVersion':1,'role':'usage'})
                 self.assertEqual(json.loads((ROOT/rel).read_text(encoding='utf-8')),{'schemaVersion':1,'role':'creator'})
+            elif name in package_data:
+                self.assertFalse((ROOT/rel).exists(),name)
+            elif name in derived:
+                # Both payloads are rebuilt byte-for-byte from their own extracted package
+                # under the existing two-package read denial in test_standalone_packages.
+                self.assertTrue((ROOT/rel).is_file(),name)
             else:
                 self.assertEqual((usage/'runtime'/rel).read_bytes(),(ROOT/rel).read_bytes(),name)
         forbidden={'session.json','status.json','launcher.json','launcher-python.json','launcher-python.json.previous','python-companion.json','build_native_patch.py','app.asar'}

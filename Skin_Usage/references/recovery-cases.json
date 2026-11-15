@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "CREATOR-UNIFIED-TITLEBAR-GAP-001",
+      "terms": [
+        "顶栏",
+        "标题栏",
+        "titlebar",
+        "topbar gap"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "顶栏未覆盖到内容边界",
+          "symptom": "原生顶栏高度与内容起点不一致，或隐藏缓存页面被当作几何参考。",
+          "action": "按精确客户端适配检查可见且非零的参考边界；只延伸自有背景层，保留按钮和拖动区域。",
+          "verify": "核对普通/最大化及当前绘制分支的实际覆盖，不能只看选择器命中。"
+        },
+        "en": {
+          "title": "Topbar coverage gap",
+          "symptom": "Native bar height differs from the content boundary, or hidden cached pages supply geometry.",
+          "action": "Use visible nonzero references from the exact client profile. Extend only the owned paint layer; preserve native buttons and dragging.",
+          "verify": "Check actual normal/maximized coverage for the active paint branch, not just selector matches."
+        }
+      }
+    },
+    {
+      "id": "SKIN-CHAT-FOOTER-MASK-001",
+      "terms": [
+        "底部黑影",
+        "底部虚化",
+        "页脚",
+        "footer",
+        "bottom fade"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "原生页脚遮挡底图",
+          "symptom": "源图下方清晰，但聊天页脚伪元素另绘渐变和黑底。",
+          "action": "比较源图与页脚before/after样式；仅清除已证实的聊天区域装饰底色，不用扩图或模糊补边掩盖。",
+          "verify": "普通/最大化检查伪元素透明且地面连续，保留输入框和附件点击。"
+        },
+        "en": {
+          "title": "Native footer hides the scene",
+          "symptom": "The source is sharp but footer pseudo-elements add their own gradient and solid fill.",
+          "action": "Compare source art and computed before/after styles. Clear proven chat decoration fills only; do not mask the cause with outpainting.",
+          "verify": "Check continuous ground and transparent pseudo-elements at both window sizes; retain composer and attachment hits."
+        }
+      }
+    },
+    {
+      "id": "SKIN-POPOVER-BACKPLATE-001",
+      "terms": [
+        "弹窗底板",
+        "摘要",
+        "popover",
+        "backplate",
+        "原生蒙层"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "弹层内层底板盖住主题色",
+          "symptom": "外层已着色，但原生内层组件或伪元素仍绘制自己的底色。",
+          "action": "定位实际可见内层及其表面变量；局部适配并保留差异、状态等语义颜色，禁止全局后代改色。",
+          "verify": "重新打开原生弹层，检查真实底板和普通文字/图标对比度。"
+        },
+        "en": {
+          "title": "Inner popover backplate hides theme paint",
+          "symptom": "An inner native component can retain its own fill after the outer container is themed.",
+          "action": "Inspect the visible inner component and surface variables. Scope changes and preserve semantic colors; avoid universal descendant overrides.",
+          "verify": "Reopen the native popover and inspect actual neutral text/icon contrast on its visible surface."
+        }
+      }
+    },
+    {
+      "id": "RUNTIME-CLIENT-VERSION-CHANGE-001",
+      "terms": [
+        "client version",
+        "version mismatch",
+        "版本不匹配",
+        "客户端更新",
+        "blocked-client-version"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "客户端版本与适配不匹配",
+          "symptom": "客户端更新后旧助手仍存在，不代表旧配置适用于新界面。",
+          "action": "读取精确版本注册表并保持原版支持。未知版本停止注入，先单独适配，不按近似版本猜测。",
+          "verify": "检查官方会话版本、选中的适配和实际界面一致；旧盘点不能改版本号后复用。"
+        },
+        "en": {
+          "title": "Client/profile version mismatch",
+          "symptom": "A surviving helper after an app update does not establish profile compatibility.",
+          "action": "Use the exact version registry and retain existing profiles. Unknown versions stop injection until separately adapted.",
+          "verify": "Verify official session, chosen profile and actual surfaces. Do not relabel old inventory as new-version evidence."
+        }
+      }
+    },
+    {
+      "id": "RUNTIME-STALE-PAYLOAD-001",
+      "terms": [
+        "旧样式",
+        "载荷未刷新",
+        "payload mismatch",
+        "payloadMatches",
+        "stale payload"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "代码更新但窗口仍用旧载荷",
+          "symptom": "助手在启动时读取载荷，文件同步本身不会证明当前窗口已加载新版本。",
+          "action": "比较包内载荷版本和受管状态；按精确身份正常停止并重载唯一自有助手，保留客户端，不并行启动第二个助手。",
+          "verify": "核对实际注入版本与活动主题；临时预览不能代替正式主题的保存和透明度检查。"
+        },
+        "en": {
+          "title": "Window still uses an older payload",
+          "symptom": "The companion reads its payload at startup; copied files alone do not prove a live update.",
+          "action": "Compare payload metadata with managed status. Reload only the uniquely verified owned companion, preserving the client and avoiding a second watcher.",
+          "verify": "Check the live revision and active Skin. A temporary preview does not verify saved theme or opacity settings."
+        }
+      }
+    },
+    {
+      "id": "RUNTIME-POWERSHELL-HOST-001",
+      "terms": [
+        "PowerShell 7",
+        "ownerStarted",
+        "identity was reused",
+        "时间精度",
+        "宿主"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "错误的PowerShell宿主导致身份校验差异",
+          "symptom": "较新宿主可能自动解析JSON日期，改变字符串精度，令原时间戳比较拒绝。",
+          "action": "按原启动链路使用Windows PowerShell的powershell.exe；先核实实际进程身份，不能改时间戳或放宽比较。",
+          "verify": "原身份校验必须在指定宿主真正通过，不能把换解释器当作绕过条件。"
+        },
+        "en": {
+          "title": "PowerShell host changes timestamp parsing",
+          "symptom": "A newer host may parse JSON dates automatically and alter precision used by the legacy identity check.",
+          "action": "Use Windows PowerShell powershell.exe for that route. Verify process identity; never edit timestamps or relax comparisons.",
+          "verify": "The original owner check must genuinely pass in its supported host; changing interpreters is not an identity bypass."
+        }
+      }
+    },
+    {
+      "id": "RUNTIME-PAYLOAD-DEPENDENCY-001",
+      "terms": [
+        "Runtime packaging contract changed",
+        "打包依赖",
+        "导入头",
+        "payload dependency"
+      ],
+      "status": "verified-fix",
+      "locales": {
+        "zh-CN": {
+          "title": "新增导入与打包契约不同步",
+          "symptom": "渲染器新增核心函数导入，但载荷构建器的精确导入头未同步。",
+          "action": "同步已审查依赖的精确导入声明，保留未知模块拒绝；不要改成宽泛字符串删除以让构建通过。",
+          "verify": "构建完成后核对载荷解析、未知目标拒绝和独立包依赖隔离。"
+        },
+        "en": {
+          "title": "Payload dependency header mismatch",
+          "symptom": "A renderer import was added without updating the payload builder strict import header.",
+          "action": "Update the exact reviewed import contract. Preserve unknown-module rejection instead of broad import stripping.",
+          "verify": "Verify payload parsing, foreign-target refusal and standalone dependency isolation after rebuilding."
+        }
+      }
+    },
+    {
+      "id": "NATIVE-SEARCH-CONTEXT-001",
+      "terms": [
+        "Thread context is unavailable",
+        "搜索上下文",
+        "native search",
+        "搜索错误页"
+      ],
+      "status": "unresolved",
+      "locales": {
+        "zh-CN": {
+          "title": "原生搜索上下文异常，原因未定",
+          "symptom": "曾出现原生线程上下文错误；重试恢复且后续未复现，根因仍未证实。",
+          "action": "保留观察并使用已显示的原生重试恢复；需要隔离时只移除自有层，不清账户数据、不放宽错误页注入条件。",
+          "verify": "区分原生/有皮肤对照和可能重放的旧日志。一次重试成功不能登记根因已修复。"
+        },
+        "en": {
+          "title": "Native search context error; cause unresolved",
+          "symptom": "A native thread-context error recovered on retry and did not recur in later comparisons; its cause is unconfirmed.",
+          "action": "Retain observations and use the visible native retry. If isolation is needed, remove only owned layers; keep account data and error-page guards.",
+          "verify": "Distinguish native/themed comparisons from replayed old logs. One successful retry does not establish a root-cause fix."
+        }
+      }
+    }
+  ]
+}

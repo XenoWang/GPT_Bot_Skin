@@ -238,6 +238,16 @@ class StandalonePackages(unittest.TestCase):
     def test_usage_zip_configures_independently_without_launching_a_client(self):
         package, unrelated, env, manifest = self.pack_and_extract('Skin_Usage')
         self.check_modules_and_build(package, unrelated, env)
+        # The new Usage helper must work from an arbitrary cwd with both original
+        # package roots denied, not accidentally import Creator's recovery module.
+        summary = self.python_entry(package / 'Inspect-Skin.py', ['status'], cwd=unrelated, env=env)
+        summary = json.loads(summary.stdout)
+        self.assertEqual(summary['themes'], ['kurumi-twilight', 'neutral-dark', 'spring-sakura', 'planeptune-sisters'])
+        self.assertEqual(summary['scope'], 'disk-metadata-only')
+        self.assertFalse(summary['liveVerified'])
+        recovered = self.python_entry(package / 'Inspect-Skin.py', ['recovery', '--query', 'footer', '--language', 'en'], cwd=unrelated, env=env)
+        self.assertEqual(json.loads(recovered.stdout)['matches'][0]['id'], 'SKIN-CHAT-FOOTER-MASK-001')
+        self.assertFalse((package / '.local').exists())
         self.assertNotIn('runtime/renderer/authoring.mjs', manifest['files'])
         for profile in ['26.1103', '26.1111']:
             self.assertNotIn('runtime/adapters/authoring-' + profile + '.json', manifest['files'])

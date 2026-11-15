@@ -5,9 +5,9 @@
     "Build-Zip.py": "64fffa218c331eeb389135ac2fd99122124bf200984c9c549c947bffbfc9bb3a",
     "Configure-Skin.cmd": "5c58104cc592bc913c0a34274ff62a018255426fca165a754bbf32f12f651311",
     "Inspect-UI.ps1": "440fe48b8c394efa1d32e51aba502e860d9f442f7be5ec31032bc5375ff8c49e",
-    "README.md": "e0f87f73b9a66646d162adff994f90ec35e539a0b9b5330afc185c9ffc945c69",
+    "README.md": "b148cce3b96c93b964a89af3776fba26b9950cbaa0e6d63596d38ef86cc00bcb",
     "Restore-Skin.cmd": "13f1e412dfb86f1059d454af6b3a91c86920215edd893511d9128dfcbdf35671",
-    "SKILL.md": "02c14e8291d69e1b1bba35290a7b4525bdec7eba4ace45b3fb3d49aa2dd55802",
+    "SKILL.md": "521f91f1da802136d134bd2746481b8def38af1db925d3b9cb1df226049063d4",
     "Start-Skin.cmd": "40fee398fcc206e4dbcc324dded0eae8287ddfb12b25fb527617c0dd395efabc",
     "Start-Skin.py": "4db0238280187500de6afc3b5c4d8fce42564c018f046e2cb582d4189f77ceed",
     "agents/openai.yaml": "c9256bdfd352fb2c75037a49425efc59d7c9dd8135ca0f84f58e8202b301fa67",
@@ -61,6 +61,12 @@
     "runtime/themes/planeptune-sisters/assets/decal-n.png": "4410486066104d763afc3321dd6cd252fff09bf110ab50e2b5ed12f824f4f22a",
     "runtime/themes/planeptune-sisters/assets/sidebar.png": "5a2da34b69e745ff5699b04622c4da54580d634fd5ce0f981a59e55dc6694982",
     "runtime/themes/planeptune-sisters/assets/sidebarBody.png": "3425acaebb7b964dd9fed978f0e059805d573fdae4a6d0da4d28747531558a60",
-    "runtime/themes/planeptune-sisters/assets/sidebarHeader.png": "5de703f259b1058150cdc73722a3b1ea33f0f91b3114da537fdc6666a42b7032"
+    "runtime/themes/planeptune-sisters/assets/sidebarHeader.png": "5de703f259b1058150cdc73722a3b1ea33f0f91b3114da537fdc6666a42b7032",
+    "Inspect-Skin.py": "e61d774f53950ab6aa1016dfc19a16b0171b86c8fb66d5171437dc2c74bee7ed",
+    "scripts/usage_support.py": "0eb094c9c97026aae69802812ab04a5447bd007f7a688bab0b540aea91bd151d",
+    "scripts/usage_recovery.py": "89a525db2ca656ad6925727cd7d70291b13f1028e56755bbbca875ecdc921448",
+    "references/launch.md": "9660f88ffe812f2724e426d2dc3f7174e8cafd2069c629d25c2092b073fe75f3",
+    "references/recovery.md": "7f57d35435e0c2cf1eaaa036b540a868a47a009c296e82ec926fcc9dc264c72f",
+    "references/recovery-cases.json": "060f992ea6b2b660e9c76a51a6deb8186eb95fdf5f6d256173eab89403512a90"
   }
 }

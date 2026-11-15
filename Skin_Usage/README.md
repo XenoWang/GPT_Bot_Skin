@@ -108,3 +108,12 @@ Ask GPT to read this folder's `SKILL.md`, check official Codex Desktop and Node 
 **Backward compatibility is not supported.** For an older client, ask Codex to run this folder's `Inspect-UI.ps1`, visit available pages/states, present the region catalog and coverage gaps, then adapt and verify. This is not a one-click compatibility patch.
 
 From this folder run `powershell.exe -NoProfile -File .\Inspect-UI.ps1 -Label current`. It uses managed launch configuration or an explicit `-StatePath`. Reports and region catalogs are local ignored work files. Unopened pages, dialogs and closed shadow roots remain uninspected. The scanner reads structure/styles only, never messages, passwords or input values, and does not modify the client.
+
+
+## 简短摘要与按需纠错 / Compact metadata and recovery
+
+`python Inspect-Skin.py status` 一次汇总包内主题、精确适配版本和现有启动配置，默认输出简短JSON；需要更多路径信息时用 `--format full`。已知会话可加 `--state <session.json>`。此入口只读磁盘，不运行子进程、不启动客户端、不接管会话；即使状态文件很新也不等于实时身份或视觉验证。
+
+遇到问题再用 `python Inspect-Skin.py recovery --query "症状" --language zh-CN`，最多返回3个相关案例。案例与中英文文案存配置文件，正常摘要不加载它们。验证后的修复记录按[纠错说明](references/recovery.md)追加到被排除发布的本地目录；未知根因保留未解决状态。启动细节见[按需启动说明](references/launch.md)，原有入口和主题配置不变。
+
+Use `python Inspect-Skin.py status` for compact, read-only package/configuration metadata. Add `--format full` only when details are needed. Saved status is not live identity or visual proof. The helper starts no client or subprocess. On a real error, use `recovery --query "symptom" --language en`; it loads at most three matching cases. Verified records append to private storage and never authorize or execute fixes.

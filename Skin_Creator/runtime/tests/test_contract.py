@@ -86,7 +86,7 @@ class Contracts(unittest.TestCase):
     def test_cdp_contracts_and_launcher_syntax(self):
         for script in ['scripts/cdp-transport.mjs','scripts/cdp-companion.mjs','scripts/build-cdp-payload.mjs']:
             subprocess.run(['node','--check',script],cwd=ROOT,check=True)
-        subprocess.run(['node','--test','tests/cdp.test.mjs'],cwd=ROOT,check=True)
+        subprocess.run(['node','--test','tests/cdp.test.mjs','tests/adapter-versions.test.mjs'],cwd=ROOT,env={**os.environ,'CODEX_THEME_TEST_ROOT':str(self.folder)},check=True)
         command=r'''$allErrors=@(); foreach($name in @('Start-CodexTheme.ps1','Assert-CdpOwner.ps1','Restore-CodexAppearance.ps1','Configure-CodexSkin.ps1','Skin-LaunchConfig.ps1')) { $tokens=$null; $parseErrors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $env:CODEX_PLUGIN_ROOT ('scripts\'+$name)),[ref]$tokens,[ref]$parseErrors) | Out-Null; if($parseErrors.Count){$allErrors+=$parseErrors} }; if($allErrors.Count){$allErrors | ForEach-Object {Write-Error $_.Message}; exit 1}'''
         subprocess.run(['powershell.exe','-NoProfile','-Command',command],env={**os.environ,'CODEX_PLUGIN_ROOT':str(ROOT)},cwd=ROOT,check=True)
 
@@ -152,9 +152,10 @@ class Contracts(unittest.TestCase):
         self.assertGreater(len(receipt),20)
         # Package data is deliberately different; common implementation bytes remain exact.
         package_data={'theme-catalog.json','themes/spring-sakura/manifest.json','themes/spring-sakura/assets/scene.png'}
+        package_data.update('themes/planeptune-sisters/'+name for name in ['manifest.json','assets/chat.png','assets/sidebar.png','assets/sidebarBody.png','assets/sidebarHeader.png','assets/decal-hairclip.png','assets/decal-n.png'])
         derived={'dist/cdp-payload.js','dist/cdp-payload.json'}
         catalog=json.loads((usage/'runtime/theme-catalog.json').read_text(encoding='utf-8'))
-        self.assertEqual(catalog,{'schemaVersion':1,'skinIds':['kurumi-twilight','neutral-dark','spring-sakura']})
+        self.assertEqual(catalog,{'schemaVersion':1,'skinIds':['kurumi-twilight','neutral-dark','spring-sakura','planeptune-sisters']})
         sakura=json.loads((usage/'runtime/themes/spring-sakura/manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(sakura['id'],'spring-sakura');self.assertEqual(sakura['scene']['scope'],'window');self.assertEqual(sakura['scene']['background']['blackOverlay'],0.5)
         self.assertEqual(sakura['regions']['assistantMessages']['style']['surfaceOpacity'],0)
@@ -170,6 +171,11 @@ class Contracts(unittest.TestCase):
                 self.assertEqual(json.loads((ROOT/rel).read_text(encoding='utf-8')),{'schemaVersion':1,'role':'creator'})
             elif name in package_data:
                 self.assertFalse((ROOT/rel).exists(),name)
+            elif name in {'locales/en.json','locales/zh-CN.json'}:
+                translated=json.loads((usage/'runtime'/rel).read_text(encoding='utf-8'))
+                label=translated['skins'].pop('planeptune-sisters')
+                self.assertEqual(label,'Planeptune Twin Stars' if name=='locales/en.json' else '紫耀双星')
+                self.assertEqual(translated,json.loads((ROOT/rel).read_text(encoding='utf-8')))
             elif name in derived:
                 # Both payloads are rebuilt byte-for-byte from their own extracted package
                 # under the existing two-package read denial in test_standalone_packages.

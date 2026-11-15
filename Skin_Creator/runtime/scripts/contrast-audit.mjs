@@ -1,7 +1,8 @@
 // Serialized into the verified renderer. Reads geometry/styles only, never text or values.
-export function auditControlContrast(){
+export function auditControlContrast(controls={}){
  const minimum={text:4.5,icon:3},app=window.__codexAppearanceV1;
  if(!app?.creator?.revision||app.creator.stage!=='complete')throw new Error('Preview the complete Skin before auditing contrast');
+ if(controls.version&&controls.version!==app.adapter?.version)throw new Error('Runtime/client version mismatch');
  if([...document.querySelectorAll('[data-settings-panel-slug="passwords"]')].some(n=>n.getBoundingClientRect().width>0&&!n.closest('[inert],[aria-hidden="true"]')&&n.getAttribute('aria-current')==='page'))throw new Error('Contrast inspection is unavailable on protected settings pages');
  const rgb=value=>{const m=/^rgba?\(\s*([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(value??'');if(m)return [...m.slice(1,4).map(Number),m[4]===undefined?1:Number(m[4])];const s=/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\s*\)$/.exec(value??'');return s?[...s.slice(1,4).map(x=>Number(x)*255),s[4]===undefined?1:Number(s[4])]:null;};
  const neutral=c=>Math.max(...c.slice(0,3))-Math.min(...c.slice(0,3))<=12;
@@ -21,10 +22,16 @@ export function auditControlContrast(){
  function background(node){
   let out=[0,0,0],alpha=0;
   for(let n=node;n;n=parent(n)){
-   const s=getComputedStyle(n),c=rgb(s.backgroundColor);
+   const s=getComputedStyle(n);let c=rgb(s.backgroundColor);
    if(!c)return null;
    // A CSS image or owned scene cannot be inferred from a solid color token.
-   if(s.backgroundImage&&s.backgroundImage!=='none'||n.hasAttribute('data-codex-appearance-bg'))return null;
+   if(s.backgroundImage&&s.backgroundImage!=='none')return null;
+   if(n.hasAttribute('data-codex-appearance-bg')){
+    const layer=app.mounted?.get(n)?.layer,rule=app.pack?.manifest.regions.titlebar;
+    if(!layer||layer.getAttribute('data-codex-appearance-owned')!=='decoration-titlebar'||!rule?.style?.surface||rule.gradient||rule.ornament||rule.decals?.length||rule.background||app.pack.manifest.scene?.regions.includes('titlebar'))return null;
+    const paint=getComputedStyle(layer);if(paint.backgroundImage&&paint.backgroundImage!=='none'||Number(paint.opacity)!==1)return null;
+    c=rgb(paint.backgroundColor);if(!c)return null;
+   }
    for(let i=0;i<3;i++)out[i]+=c[i]*c[3]*(1-alpha);
    alpha+=c[3]*(1-alpha);if(alpha>=.999)return out;
   }
@@ -47,16 +54,23 @@ export function auditControlContrast(){
   const bg=background(n);if(!bg){skipped.imageOrUnknown++;return;}
   const ink=fg.slice(0,3).map((x,i)=>x*fg[3]+bg[i]*(1-fg[3])),value=ratio(ink,bg);
   if(kind==='icon')checkedIcons++;else checkedText++;
-  if(value+.01<minimum[kind]){const r=n.getBoundingClientRect();violations.push({kind,contrast:Math.round(value*100)/100,minimum:minimum[kind],foreground:fg,background:bg.map(Math.round),rect:[r.x,r.y,r.width,r.height].map(Math.round)});}
+  if(value+.01<minimum[kind]){
+   let region=null;for(let p=n;p&&!region;p=parent(p))region=(p.getAttribute?.('data-codex-appearance')??'').split(' ').find(key=>Object.hasOwn(app.pack?.manifest.regions??{},key))??null;
+   const r=n.getBoundingClientRect();violations.push({kind,region,tag:n.localName,contrast:Math.round(value*100)/100,minimum:minimum[kind],foreground:fg,background:bg.map(Math.round),rect:[r.x,r.y,r.width,r.height].map(Math.round)});
+  }
  }
  for(const n of nodes){
   if(++visited>6000){truncated=true;break;}
   if(!visible(n)){skipped.disabledOrHidden++;continue;}
   if(n.closest('pre,code,[data-code-block]')){skipped.semantic++;continue;}
   if(n.localName==='svg'){
+   if(controls.semanticGraphics?.some(selector=>n.matches(selector))){skipped.semantic++;continue;}
    if(n.hasAttribute('data-icon-p3')){skipped.semantic++;continue;}
    const shapes=[...n.querySelectorAll('path,line,polyline,polygon,circle,rect')],paints=shapes.length?shapes:[n];
-   for(const p of paints){const s=getComputedStyle(p),color=s.stroke&&s.stroke!=='none'?s.stroke:s.fill;if(rgb(color)?.[3]>0){check(n,'icon',color);break;}}
+   const colors=paints.map(p=>{const s=getComputedStyle(p);return s.stroke&&s.stroke!=='none'?s.stroke:s.fill;}).filter(color=>rgb(color)?.[3]>0);
+   // A colored status meter is not a monochrome icon merely because its track is first.
+   if(colors.some(color=>!neutral(rgb(color)))){skipped.semantic++;continue;}
+   if(colors.length)check(n,'icon',colors[0]);
   }else if(hasText(n))check(n,'text',getComputedStyle(n).color);
  }
  return {revision:app.creator.revision,runtimeRevision:window.__codexAppearanceRevision??null,minimum,checkedText,checkedIcons,skipped,truncated,violations,notApplicable:eligibleRoots===0,passed:!truncated&&(checkedText+checkedIcons>0||eligibleRoots===0)&&violations.length===0};

@@ -2,16 +2,25 @@
 
 所有命令从解压后的 Creator 包目录运行，使用 `node scripts/creator.mjs <command> --session work/<draft>`。也可用 `Create-Skin.ps1` 包装入口。CLI 摘要供代理读取；面向用户展示编号图、图片和自然语言选择，不让用户理解内部键。状态写入采用锁及原子替换；中断后继续同一会话，不删除原证据。
 
+日常续跑推荐追加 `--format brief`，省略重复语言列表并压缩状态信息；默认或 `--format full` 保留原完整输出。续跑使用会话语言，不重复启动系统语言探测。
+
+后续换背景可用 `preview --stage background --retain-controls true` 保留已配控件样式，仍须接受新背景，不能借此完整确认或导出。`refresh-adapter` 也允许仅追加按区域限定的 `::before/::after` 清底目标：不改变几何或原生结构覆盖，绑定及所有外观接受失效；删除目标或其他非选择器变更仍拒绝。
+
 All commands share the prefix above. The CLI returns concise agent-facing summaries. Show users the generated diagram, images and readable choices. Sessions use a lock and atomic replacement; resume the same folder rather than discarding evidence.
 
 | 命令 / Command | 输入与作用 / Input and effect |
 |---|---|
 | `start --state "<session.json>" --id my-skin --name "My Skin"` | 默认运行受管盘点，输出图表及缺口 / Starts inventory by default |
 | `inventory --state "..."` | 重新测量；同目标与布局可复用已完成状态 / Resumes matching coverage |
+| `refresh-adapter --state "..." --input "<previous-adapter.json>"` | 同版本控件选择器变更后，只使受影响状态失效；需完整旧配置证明原绑定 / Invalidates only affected states after a proven control-selector update |
 | `capture --state "..." --slot menus` | UI 工具打开缺口状态后采集，必须满足结构证据 / Captures an actually opened missing state |
 | `capture-settings --state "..."` | 设置页已打开时批量补采已知子页并恢复原设置页 / Batches known tabs within an already-open native Settings surface |
 | `capture-shell --state "..." --slot settings-passwords --note "<实际授权>"` | 用户授权并打开配置支持的受保护页后，仅采集外层布局 / Captures only approved outer containers of an already-open protected settings page |
 | `status` | 只显示当前阶段摘要、尺寸与缺口 / Shows summary, dimensions and gaps |
+| `decal --slot hairclip --input "<image.png>"` | 注册小型点缀图并保留哈希；在自定义配色的decals中引用 / Registers a bounded raster decoration |
+| `recovery --note "<error or symptom>"` | 查询少量匹配案例和本地修复历史 / Returns matching recovery cases |
+| `diagnose --state "..." --slot titlebar` | 仅检查顶栏几何与自有绘制层 / Diagnoses titlebar coverage without navigation |
+| `recovery-record --input "<record.json>"` | 追加带验证依据的私有记录 / Appends a private recovery record |
 | `select --input "<choices.json>"` | 保存形式、语言及区域范围 / Saves form, language and scope |
 | `source --input "<source.json>"` | 用户给图或生成 / Supplied or generated images |
 | `prompt --input "<prompt.json>"` | 保存待确认提示词，输出生成请求与精确素材槽 / Records the prompt and required slots |
@@ -36,7 +45,9 @@ Use `--target` only when multiple native windows cannot be disambiguated. Missin
 
 设置入口未在初始导航中出现时，先用可用UI工具打开原生设置，再执行 `capture-settings`。脚本一次处理实际可访问的已知子页，验证可见且可交互的导航状态；结束或异常时恢复原设置子页。父级设置界面由打开它的UI步骤负责返回原工作区，不把子页恢复误称为已关闭设置。缺失入口保留缺口，密码等受保护状态不进入采集；版本配置中的 `externalStates` 也不由本地批量点击。个人资料属于独立原生页面，配置为 `kind: surface`；用界面工具打开后运行 `capture --slot settings-profile`，必须实际命中可见、非惰性的资料容器。不会把离开设置直接当作外部网页或覆盖成功。若意外跳转使设置表面消失，立即停止并保留未访问项。检查恢复回执，不能只看命令退出码。
 
-`runtime/adapters/authoring-controls-26.1103.json` 维护同一语义状态对应的实际导航键及侧栏控件标签。每项已观察导航带实际目标键；别名变化只失效相关记录，不清空已确认图意或无关采样。预览/导出前也会复核这些记录；隐藏的缓存导航节点不能作为已到达页面的证据。修改配置须对应真实结构证据，不按猜测新增可执行入口。
+`runtime/adapters/versions.json` 按完整客户端版本选择独立配置组；各组的 `authoring-controls-<profile>.json` 维护实际导航键及侧栏控件标签。每项已观察导航带实际目标键；同版本别名变化只失效相关记录。客户端升级需重新盘点，保留原素材与创意文件，但不能把旧覆盖改名当成新版本验证。预览/导出复核绑定；隐藏缓存节点不能作为已到达证据。未知版本拒绝导航或注入，不按相近版本猜测。
+
+仅修改非场景控件选择器时，先保存旧适配JSON，再使用 `refresh-adapter`。脚本核对旧配置与现有报告、真实窗口和当前计划的绑定；所有非选择器配置、场景选择器、完整版本和已测视口必须保持一致。受影响状态及旧区域样本被移除通过资格，必须 `capture` 重新采集；其余证据保留。原图、选择与配色不清空，但旧阶段接受失效。不可用它跳过新版本/场景/计划变化的完整盘点。
 
 Open native Settings once through available UI tools, then use `capture-settings` to collect reachable known tabs. The batch attempts to restore the starting tab even on failure; the calling UI workflow returns from Settings to the original workspace. Profile is a standalone native page (`kind: surface`): open it through UI tools, then run `capture --slot settings-profile`. Its visible native structure must match; the automatic batch never opens it. Protected states, known `externalStates`, and missing entries stay explicit gaps. An unexpected departure from the native settings surface stops the batch; inspect restoration receipts, not just the exit code. Versioned control aliases are configuration, and each observation retains its native navigation or surface key. Changed mappings invalidate affected observations before preview/export; hidden or inert cached navigation cannot prove coverage or serve as restoration targets.
 
@@ -74,6 +85,16 @@ MCP 使用 `{"kind":"generated","provider":"mcp","providerName":"<configured too
 ```json
 {"mode":"custom","colors":["#391527","#B67153"]}
 ```
+
+区域覆盖可指定 `surfaceOpacity:0.85`，表示底色85%不透明，前景不受影响；必须在0到1之间。`surface:null` 只能使用0且需显式前景。颜色预检不能代替半透明底的实机对比。
+
+自定义配色可增加 `ornaments`，键为已选择且有控件样式的非图片区。支持受限内置 `rose-vines` 和 `cross-emblem`，不接收任意SVG、CSS或外部图片。示例：
+
+```json
+{"titlebar":{"pattern":"cross-emblem","orientation":"horizontal","color":"#30223F","accent":"#8DC6E8","opacity":0.4,"scale":0.65,"placement":"top-right","offset":[154,8]}}
+```
+
+上述对象放在配色输入的 `ornaments` 字段。徽记位置限定四角，偏移为两个0到256像素数值；徽记不平铺。图片/玫瑰旧装饰保持原行为。导出后的底色、蒙层、边框、悬停与装饰透明度由主题设置根据清单自动枚举，保留每主题独立偏好；新徽记需要随包更新的兼容运行时。
 `theme` 模式只能使用脚本给出的候选；允许多选。根据实测前景色为表面选择可读底色，默认不透明底色，避免照片变化破坏对比度。前景采样为有限结构样本，不宣称穷尽全部文字；真实效果仍需用户验收。混合前景无法满足约束时返回冲突，而不改变正文颜色。
 
 Theme mode accepts the displayed candidates; multiple choices are supported. Surface colors are derived from measured foreground samples using opaque backgrounds to avoid photo-dependent contrast. Samples are finite, not proof of every text node. Conflicting foreground colors require separate adapter mapping, not silent text recoloring.
@@ -93,6 +114,12 @@ Theme mode accepts the displayed candidates; multiple choices are supported. Sur
 盘点覆盖和实际着色分别控制。`regionStyles` 中某个非场景区域设为 `null` 表示保留原生外观（滚动条也可这样保留）；不需要把所有观察过的区域都染色。某个区域的 `surface:null` 表示透明底，需要明确文字颜色。例如：`"assistantMessages":{"surface":null,"text":"#FFFFFF","borderWidth":0}`，配合 `"buttons":null` 保留普通按钮原样。透明底转换为零透明度表面，不伪造固定底色对比通过；实际可读性需看背景预览。这些选择不改变已接受背景。
 
 Coverage and painting are separate choices. A control-region entry of `null` in `regionStyles` retains native appearance, including for scrollbars. `surface:null` within a region creates a transparent surface with an explicit foreground; for example `"assistantMessages":{"surface":null,"text":"#FFFFFF","borderWidth":0}` and `"buttons":null`. Transparency uses zero surface opacity and requires visual readability review over the real scene. Neither choice invalidates the accepted background.
+
+Control overrides follow the selected form. In separate-image mode, only the main chat and sidebar receive images; selected title bars, navigation, page headers and other non-image regions can have independent or transparent control styles. In unified mode, selected shared-scene regions retain their image background and reject control overrides. Color validation runs before changing the session in either form.
+
+Custom colors may also include `"hover":{"surface":"#8050B5","surfaceOpacity":0.38}` for the mapped hover/active surfaces, including selected themed sidebar rows. The background remains accepted; complete preview acceptance is invalidated. Opacity must be between 0 and 1. Existing packs and palettes without this option keep their prior behavior.
+
+自定义配色还可传入 `hover` 的底色和透明度，使映射的悬停/选中区域跟随主题；不会改动已接受背景，但需要重新预览完整控件。纠错查询、定点诊断和追加记录的格式见 [recovery.md](recovery.md)。
 
 固定交付规则：浅底不能配浅色文字/图标，深底不能配深色文字/图标。完整预览会读取当前实际渲染的几何和计算样式，核对可解析实色背景上的中性文字4.5:1、单色图标3:1；不读取文字内容或输入值。`contrast` 可在打开摘要、菜单、搜索等弹层后补采，同一完整版本和运行时下的已查状态必须全部无已知违规，才能整体确认或导出。报告保存在私有会话目录，不进入主题数据包。图片底、语义彩色、禁用/隐藏状态和截断明确报告边界，不能用“没扫到”代替通过；受保护密码页拒绝此类内层检查。
 

@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "CONTRAST-SEMANTIC-METER-001",
+      "terms": [
+        "semantic meter",
+        "usage meter track",
+        "color-usage-meter-track",
+        "用量轨道",
+        "语义仪表"
+      ],
+      "key": "recovery.case.semantic-meter"
+    },
+    {
+      "id": "CREATOR-CUSTOM-STYLE-001",
+      "terms": [
+        "foreground",
+        "text-tertiary",
+        "文字对比",
+        "前景",
+        "白字"
+      ],
+      "key": "recovery.case.foreground"
+    },
+    {
+      "id": "CREATOR-UNIFIED-TITLEBAR-GAP-001",
+      "terms": [
+        "顶栏",
+        "标题栏",
+        "titlebar",
+        "topbar",
+        "black strip"
+      ],
+      "key": "recovery.case.titlebar"
+    },
+    {
+      "id": "CREATOR-VIEWPORT-STABILITY-001",
+      "terms": [
+        "viewport",
+        "视口",
+        "尺寸未",
+        "尺寸变化"
+      ],
+      "key": "recovery.case.viewport"
+    },
+    {
+      "id": "CREATOR-SEPARATE-CONTROL-ROLE-001",
+      "terms": [
+        "selected control region",
+        "pageHeaders",
+        "独立控件",
+        "分开式配色"
+      ],
+      "key": "recovery.case.control-role"
+    },
+    {
+      "id": "SKIN-POPOVER-BACKPLATE-001",
+      "terms": [
+        "backplate",
+        "原生底板",
+        "原生蒙层",
+        "摘要",
+        "popover"
+      ],
+      "key": "recovery.case.backplate"
+    },
+    {
+      "id": "AUTHORING-EDITABLE-FOCUS-001",
+      "terms": [
+        "editable field",
+        "editable-focused",
+        "输入焦点",
+        "输入框焦点",
+        "搜索框"
+      ],
+      "key": "recovery.case.focus"
+    },
+    {
+      "id": "ART-ENVIRONMENT-COLORCAST-001",
+      "terms": [
+        "色偏",
+        "发紫",
+        "color cast",
+        "too purple"
+      ],
+      "key": "recovery.case.color-cast"
+    },
+    {
+      "id": "RUNTIME-CLIENT-VERSION-CHANGE-001",
+      "terms": [
+        "client version",
+        "Adapter/client",
+        "version mismatch",
+        "版本不匹配",
+        "客户端更新"
+      ],
+      "key": "recovery.case.client-version"
+    },
+    {
+      "id": "SKIN-CHAT-FOOTER-MASK-001",
+      "terms": [
+        "footer",
+        "底部黑影",
+        "底部虚化",
+        "页脚",
+        "bottom fade"
+      ],
+      "key": "recovery.case.footer"
+    }
+  ]
+}

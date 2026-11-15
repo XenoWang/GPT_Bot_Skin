@@ -23,7 +23,16 @@ export function validateManifest(input) {
   keys(input.regions,REGIONS,'区域');
   if(input.hover!==undefined){keys(input.hover,['surface','surfaceOpacity'],'hover');color(input.hover.surface,'hover.surface');number(input.hover.surfaceOpacity,0,1,'hover.surfaceOpacity');}
   for(const [region,rule] of Object.entries(input.regions)) {
-    keys(rule,['enabled','style','background','gradient','ornament'],region);
+    keys(rule,['enabled','style','background','gradient','ornament','decals'],region);
+    if(rule.decals!==undefined){
+      if(input.schemaVersion!==2||!Array.isArray(rule.decals)||!rule.decals.length||rule.decals.length>8)fail('点缀需要版本2且每区域1至8项');
+      for(const d of rule.decals){
+        keys(d,['asset','symbol','color','accent','width','placement','offset','opacity'],`${region}.decals`);
+        if(d.symbol!==undefined){if(!['A','B','X','Y','up','down','left','right'].includes(d.symbol)||d.asset!==undefined)fail('不支持的单键点缀');color(d.color,'按键底色');color(d.accent,'按键符号颜色');}
+        else{assetPath(d.asset);if(d.color!==undefined||d.accent!==undefined)fail('图片点缀使用素材颜色');}
+        number(d.width,8,256,'点缀宽度');number(d.opacity,0,1,'点缀透明度');if(!['top-left','top-right','bottom-left','bottom-right','top-center','bottom-center'].includes(d.placement))fail('不支持的点缀位置');if(!Array.isArray(d.offset)||d.offset.length!==2)fail('点缀偏移需要两个数值');number(d.offset[0],d.placement.endsWith('-center')?-512:0,512,'点缀水平偏移');number(d.offset[1],0,512,'点缀垂直偏移');
+      }
+    }
     if(typeof rule.enabled!=='boolean')fail(`${region}: enabled 必须是布尔值`);
     if(rule.background&&(rule.gradient||rule.ornament))fail('图片背景与矢量装饰应分属独立区域');
     if(rule.gradient!==undefined){
@@ -32,10 +41,15 @@ export function validateManifest(input) {
       let previous=-1;for(const stop of rule.gradient.stops){keys(stop,['color','at'],'渐变色标');color(stop.color,'色标颜色');number(stop.at,0,1,'色标位置');if(stop.at<=previous)fail('色标位置必须递增');previous=stop.at;}
     }
     if(rule.ornament!==undefined){
-      const o=rule.ornament;keys(o,['pattern','orientation','color','accent','opacity','scale','asset'],`${region}.ornament`);
-      if(!['rose-vines','image'].includes(o.pattern)||!['vertical','horizontal'].includes(o.orientation))fail('不支持的装饰图案');
+      const o=rule.ornament;keys(o,['pattern','orientation','color','accent','opacity','scale','asset','placement','offset'],`${region}.ornament`);
+      if(!['rose-vines','image','cross-emblem'].includes(o.pattern)||!['vertical','horizontal'].includes(o.orientation))fail('不支持的装饰图案');
       if(o.pattern==='image'){assetPath(o.asset);if(o.color!==undefined||o.accent!==undefined)fail('图片装饰使用素材颜色');}else{color(o.color,'花朵颜色');color(o.accent,'藤蔓颜色');if(o.asset!==undefined)fail('矢量图案不接受外部素材');}
       number(o.opacity,0,1,'装饰透明度');if(o.scale!==undefined)number(o.scale,.5,2,'装饰比例');
+      if(o.placement!==undefined||o.offset!==undefined){
+        if(o.pattern!=='cross-emblem')fail('角落定位仅支持徽记装饰');
+        if(o.placement!==undefined&&!['top-left','top-right','bottom-left','bottom-right'].includes(o.placement))fail('不支持的装饰位置');
+        if(o.offset!==undefined){if(!Array.isArray(o.offset)||o.offset.length!==2)fail('装饰偏移需要两个数值');for(const v of o.offset)number(v,0,256,'装饰偏移');}
+      }
     }
     if(rule.style!==undefined) {
       keys(rule.style,[...STYLE_KEYS],`${region}.style`);
@@ -101,7 +115,7 @@ export function validateManifest(input) {
   }
   return structuredClone(input);
 }
-export function requiredAssets(manifest) {return [...new Set([...Object.values(manifest.regions).filter(r=>r.background).map(r=>r.background.asset),...(manifest.scene?[manifest.scene.background.asset]:[]),...(manifest.sidebarLayout?[manifest.sidebarLayout.header.asset]:[]),...(manifest.sidebarLayout?.body?[manifest.sidebarLayout.body.asset]:[]),...Object.values(manifest.regions).filter(r=>r.ornament?.pattern==='image').map(r=>r.ornament.asset),...(manifest.chatLayout?.leftExtension?[manifest.chatLayout.leftExtension]:[])])];}
+export function requiredAssets(manifest) {return [...new Set([...Object.values(manifest.regions).filter(r=>r.background).map(r=>r.background.asset),...(manifest.scene?[manifest.scene.background.asset]:[]),...(manifest.sidebarLayout?[manifest.sidebarLayout.header.asset]:[]),...(manifest.sidebarLayout?.body?[manifest.sidebarLayout.body.asset]:[]),...Object.values(manifest.regions).filter(r=>r.ornament?.pattern==='image').map(r=>r.ornament.asset),...Object.values(manifest.regions).flatMap(r=>(r.decals??[]).filter(d=>d.asset).map(d=>d.asset)),...(manifest.chatLayout?.leftExtension?[manifest.chatLayout.leftExtension]:[])])];}
 export function sidebarSections(height,headerHeight,mode){
   number(height,0,100000,'侧栏高度');
   if(!['merged','split'].includes(mode))fail('无效侧栏模式');
@@ -180,6 +194,7 @@ export function opacityOptions(manifest,language='zh-CN',translations={}){
   if(rule.style?.border)add([...p,'style','borderOpacity'],label+' · '+labelFor('opacityBorder'),rule.style.borderOpacity??1);
   if(rule.background)add([...p,'background','blackOverlay'],label+' · '+labelFor('opacityOverlay'),rule.background.blackOverlay,true);
   if(rule.ornament)add([...p,'ornament','opacity'],label+' · '+labelFor('opacityDecoration'),rule.ornament.opacity);
+  for(const [index,d]of (rule.decals??[]).entries())add([...p,'decals',String(index),'opacity'],label+' · '+labelFor('opacityDecoration')+' '+(index+1),d.opacity);
  }
  if(m.regions.sidebar?.enabled&&m.sidebarLayout){
   for(const [key,labelKey]of [['header','opacitySidebarHeader'],['body','opacitySidebarBody']])if(m.sidebarLayout[key])add(['sidebarLayout',key,'blackOverlay'],labelFor(labelKey)+' · '+labelFor('opacityOverlay'),m.sidebarLayout[key].blackOverlay,true);
@@ -239,9 +254,22 @@ export function skinLanguage(preference='auto',appLanguage='',translations){
 export function skinText(language,key,values={},translations={}){const text=translations[language]?.strings?.[key]??translations.en?.strings?.[key]??key;return text.replace(/\{(\w+)\}/g,(_,name)=>String(values[name]??''));}
 export function skinError(language,error,translations){const message=error?.message??String(error);if(language.startsWith('zh')||!/[\u3400-\u9fff]/.test(message))return message;if(message==='主题存储被其他窗口阻塞')return skinText(language,'storageBlocked',{},translations);if(message==='存储已取消')return skinText(language,'storageCancelled',{},translations);return skinText(language,'invalidConfig',{},translations);}
 export function skinDisplayName(manifest,language,translations={}){return translations[language]?.skins?.[manifest.id]??translations.en?.skins?.[manifest.id]??manifest.name;}
+export function controllerButtonImage(symbol,base,accent){
+  if(!['A','B','X','Y','up','down','left','right'].includes(symbol))fail('不支持的单键点缀');color(base,'按键底色');color(accent,'按键符号颜色');
+  const angle={up:0,right:90,down:180,left:270}[symbol];
+  const glyph=angle===undefined?`<text x="32" y="42" text-anchor="middle" font-family="Arial,sans-serif" font-size="29" font-weight="700" fill="${accent}">${symbol}</text>`:`<path d="M32 18L44 39H20Z" fill="${accent}" stroke="${accent}" stroke-width="2" stroke-linejoin="round" transform="rotate(${angle} 32 32)"/>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="b" x2="0" y2="1"><stop stop-color="#FFFFFF"/><stop offset=".6" stop-color="${base}"/><stop offset="1" stop-color="${accent}" stop-opacity=".65"/></linearGradient></defs><circle cx="32" cy="33" r="28" fill="${accent}"/><circle cx="32" cy="31" r="27" fill="url(#b)" stroke="${accent}" stroke-width="1.5"/><circle cx="32" cy="31" r="23" fill="${base}" stroke="#FFFFFF" stroke-width="1.2"/>${glyph}<path d="M15 19Q22 10 35 11" fill="none" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="3" stroke-linecap="round"/></svg>`;
+  return 'data:image/svg+xml,'+encodeURIComponent(svg);
+}
 export function decorationCss(rule,assets={}){
-  const images=[],sizes=[],repeats=[];
-  if(rule.ornament?.pattern==='image'){
+  const images=[],sizes=[],repeats=[],positions=[];
+  if(rule.ornament?.pattern==='cross-emblem'){
+    const o=rule.ornament,horizontal=o.orientation==='horizontal',scale=o.scale??1;
+    const drawing=`<g opacity="${o.opacity}"><path d="M1 15H73L81 8H87M11 22H63L69 18H83" fill="none" stroke="${o.accent}" stroke-width="1"/><circle cx="108" cy="16" r="13" fill="${o.color}" stroke="${o.accent}" stroke-width="1.2"/><path d="M102 10L114 22M114 10L102 22" stroke="${o.accent}" stroke-width="3" stroke-linecap="round"/></g>`;
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${horizontal?'128 32':'32 128'}">${horizontal?drawing:'<g transform="translate(32 0) rotate(90)">'+drawing+'</g>'}</svg>`;
+    const [vertical,side]=(o.placement??'top-right').split('-'),[x,y]=o.offset??[8,8];
+    images.push(`url("data:image/svg+xml,${encodeURIComponent(svg)}")`);sizes.push(horizontal?`${128*scale}px ${32*scale}px`:`${32*scale}px ${128*scale}px`);repeats.push('no-repeat');positions.push(`${side} ${x}px ${vertical} ${y}px`);
+  }else if(rule.ornament?.pattern==='image'){
     const o=rule.ornament,url=assets[o.asset],scale=o.scale??1;if(!url)fail('缺少装饰图片素材');
     images.push(`url("${url}")`);sizes.push(o.orientation==='horizontal'?`${320*scale}px auto`:`auto ${320*scale}px`);repeats.push(o.orientation==='horizontal'?'repeat-x':'repeat-y');
   }else if(rule.ornament){
@@ -252,7 +280,7 @@ export function decorationCss(rule,assets={}){
     images.push(`url("data:image/svg+xml,${encodeURIComponent(svg)}")`);sizes.push(horizontal?`${320*scale}px ${52*scale}px`:`${52*scale}px ${320*scale}px`);repeats.push(horizontal?'repeat-x':'repeat-y');
   }
   if(rule.gradient){const alpha=rule.gradient.opacity??rule.style?.surfaceOpacity??1;images.push(`linear-gradient(${rule.gradient.angle}deg,${rule.gradient.stops.map(s=>`${alpha===1?s.color:rgba(s.color,alpha)} ${s.at*100}%`).join(',')})`);sizes.push('100% 100%');repeats.push('no-repeat');}
-  return {backgroundImage:images.join(','),backgroundSize:sizes.join(','),backgroundRepeat:repeats.join(','),backgroundPosition:'center'};
+  return {backgroundImage:images.join(','),backgroundSize:sizes.join(','),backgroundRepeat:repeats.join(','),backgroundPosition:positions.length?[...positions,...images.slice(positions.length).map(()=>'center')].join(','):'center'};
 }
 export function declarations(style={}) {
   const out=[];

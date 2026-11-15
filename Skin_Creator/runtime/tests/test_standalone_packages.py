@@ -54,7 +54,15 @@ class StandalonePackages(unittest.TestCase):
 
     def python_entry(self, entry, args, *, cwd, env):
         bootstrap = "import os,sys,runpy,sitecustomize;from pathlib import Path;sitecustomize.assert_active();assert sitecustomize.ACTIVE_PID==os.getpid();sys.argv=sys.argv[1:];sys.path.insert(0,str(Path(sys.argv[0]).resolve().parent));runpy.run_path(sys.argv[0],run_name='__main__')"
-        return subprocess.run([sys.executable, '-X', 'utf8', '-c', bootstrap, str(entry), *args], cwd=cwd, env=env, check=True, capture_output=True, text=True)
+        try:
+            return subprocess.run([sys.executable, '-X', 'utf8', '-c', bootstrap, str(entry), *args], cwd=cwd, env=env, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            details = json.dumps({'stdout': error.stdout, 'stderr': error.stderr}, ensure_ascii=False)
+            if hasattr(error, 'add_note'):
+                error.add_note(details)
+            else:
+                print(details, file=sys.stderr)
+            raise
 
     def parsed_modules(self, package, unrelated, env):
         result = subprocess.run(['node', '--experimental-vm-modules', env['SKIN_ISOLATION_SCANNER'], str(package)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
@@ -112,6 +120,10 @@ class StandalonePackages(unittest.TestCase):
         env = self.isolated_env(stage, unrelated, output)
         result = self.python_entry(stage / 'Build-Zip.py', ['--output', str(output)], cwd=unrelated, env=env)
         self.assertEqual(json.loads(result.stdout)['package'], name)
+        isolated = self.folder / name / 'extracted alone'
+        renamed = isolated / 'arbitrary package name'
+        self.assertTrue(renamed.resolve().is_relative_to(self.folder))
+        renamed.mkdir(parents=True)
         with zipfile.ZipFile(output) as archive:
             expected = {name + '/' + relative for relative in ['release-manifest.json', *manifest['files']]}
             self.assertEqual(set(archive.namelist()), expected)
@@ -123,13 +135,12 @@ class StandalonePackages(unittest.TestCase):
                 relative = member.filename[len(name) + 1:]
                 if relative in manifest['files']:
                     self.assertEqual(hashlib.sha256(data).hexdigest(), manifest['files'][relative])
-            isolated = self.folder / name / 'extracted alone'
-            archive.extractall(isolated)
-        original = isolated / name
-        renamed = isolated / 'arbitrary package name'
-        self.assertTrue(original.resolve().is_relative_to(self.folder))
-        self.assertTrue(renamed.resolve().is_relative_to(self.folder))
-        original.rename(renamed)
+                # Test the same arbitrary-root end state without a directory rename,
+                # which can be transiently locked by Windows immediately after extraction.
+                target = renamed / relative
+                self.assertTrue(target.resolve().is_relative_to(renamed.resolve()))
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
         self.assertFalse((isolated / 'Skin_Engine').exists())
         self.assertFalse((isolated / 'Skin_Creator').exists())
         self.assertFalse((isolated / 'Skin_Usage').exists())
@@ -146,6 +157,10 @@ class StandalonePackages(unittest.TestCase):
         subprocess.run(['node', '--input-type=module', '-e', script, str(package), str(output)], cwd=unrelated, env=env, check=True, capture_output=True, text=True)
         # Reproducibility verifies that no assets outside the package are needed.
         self.assertEqual((output / 'cdp-payload.js').read_bytes(), (package / 'runtime/dist/cdp-payload.js').read_bytes())
+        metadata = json.loads((output / 'cdp-payload.json').read_text(encoding='utf-8'))
+        self.assertEqual(metadata['payloadFormat'], 2)
+        self.assertEqual(metadata['clientVersions'], ['26.1103.4239.0', '26.1111.2228.0'])
+        self.assertEqual(metadata, json.loads((package / 'runtime/dist/cdp-payload.json').read_text(encoding='utf-8')))
         for entry in ['Start-Skin.py', 'Build-Zip.py']:
             result = self.python_entry(package / entry, ['--help'], cwd=unrelated, env=env)
             self.assertIn('usage:', result.stdout.lower())
@@ -153,7 +168,7 @@ class StandalonePackages(unittest.TestCase):
     def test_creator_zip_works_without_siblings_and_preserves_authoring_imports(self):
         package, unrelated, env, manifest = self.pack_and_extract('Skin_Creator')
         self.check_modules_and_build(package, unrelated, env)
-        for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/scripts/window-control.mjs', 'runtime/scripts/native-window.py', 'runtime/scripts/native-window.cs', 'runtime/scripts/Native-CreatorWindow.ps1', 'runtime/adapters/authoring-26.1103.json', 'runtime/adapters/authoring-controls-26.1103.json', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
+        for name in ['runtime/renderer/authoring.mjs', 'runtime/scripts/coverage-runner.mjs', 'runtime/scripts/window-control.mjs', 'runtime/scripts/native-window.py', 'runtime/scripts/native-window.cs', 'runtime/scripts/Native-CreatorWindow.ps1', 'runtime/adapters/authoring-26.1103.json', 'runtime/adapters/authoring-controls-26.1103.json', 'runtime/adapters/authoring-26.1111.json', 'runtime/adapters/authoring-controls-26.1111.json', 'runtime/adapters/versions.json', 'runtime/scripts/adapter-registry.mjs', 'scripts/creator.mjs', 'scripts/image-codec.py', 'AI_Skills/Pitfall/ThingsShouldBeAvoided.md']:
             self.assertIn(name, manifest['files'])
         # Load the real new Python helper from the isolated package. Original
         # Creator/Usage reads remain denied by the inherited audit guard.
@@ -175,22 +190,59 @@ class StandalonePackages(unittest.TestCase):
             self.fail('Creator entry did not emit JSON: ' + json.dumps({'python': {'returncode': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr}, 'direct_node': {'returncode': direct.returncode, 'stdout': direct.stdout, 'stderr': direct.stderr}}, ensure_ascii=False))
         self.assertEqual(status['id'], 'isolated-fixture')
         self.assertEqual(status['inventory'], None)
+        # Real recovery commands run inside the extracted Creator; sibling/original
+        # package access is still denied and evidence is explicitly synthetic.
+        hint = self.python_entry(package / 'Create-Skin.py', ['recovery', '--session', str(session), '--note', 'titlebar gap'], cwd=unrelated, env=env)
+        self.assertEqual(json.loads(hint.stdout)['matches'][0]['id'], 'CREATOR-UNIFIED-TITLEBAR-GAP-001')
+        (session / 'proof.json').write_text(json.dumps({'passed': True, 'scope': 'synthetic only'}), encoding='utf-8')
+        record = {'id': 'CREATOR-UNIFIED-TITLEBAR-GAP-001', 'status': 'resolved', 'symptom': 'Synthetic titlebar gap', 'resolution': 'Synthetic extension', 'verification': 'Synthetic evidence, not native acceptance', 'keywords': ['titlebar'], 'evidence': ['proof.json']}
+        (session / 'record.json').write_text(json.dumps(record), encoding='utf-8')
+        recorded = self.python_entry(package / 'Create-Skin.py', ['recovery-record', '--session', str(session), '--input', str(session / 'record.json')], cwd=unrelated, env=env)
+        stored = json.loads(recorded.stdout)
+        self.assertEqual(stored['status'], 'resolved')
+        self.assertTrue((package / stored['record']).is_file())
+        self.assertTrue((package / stored['record']).resolve().is_relative_to(package.resolve()))
+        queried = self.python_entry(package / 'Create-Skin.py', ['recovery', '--session', str(session), '--note', 'titlebar'], cwd=unrelated, env=env)
+        self.assertEqual(json.loads(queried.stdout)['matches'][0]['lastRecord']['status'], 'resolved')
         # Exercise the packaged image helper and its Python child under the same guard.
         state['selection'] = {'mode': 'unified', 'language': 'en', 'regions': ['chat'], 'excludedStates': [], 'sidebarSplit': False}
         state['source'] = {'kind': 'provided'}
-        state['inventory'] = {'binding': 'isolated-fixture', 'measurement': {'maximized': True, 'pixelRatio': 1, 'canvas': {'window': [32, 16], 'main': [32, 16]}}}
+        state['inventory'] = {'binding': 'isolated-fixture', 'clientVersion': '26.1103.4239.0', 'adapterVersion': '26.1103.4239.0', 'measurement': {'maximized': True, 'pixelRatio': 1, 'canvas': {'window': [32, 16], 'main': [32, 16]}}}
         (session / 'session.json').write_text(json.dumps(state), encoding='utf-8')
         source = package / 'work' / 'source.png'
         source.write_bytes(two_color_png())
+        malformed = json.loads(json.dumps(state))
+        del malformed['inventory']['clientVersion']
+        (session / 'session.json').write_text(json.dumps(malformed), encoding='utf-8')
+        with self.assertRaises(subprocess.CalledProcessError) as rejected:
+            self.python_entry(package / 'Create-Skin.py', ['asset', '--session', str(session), '--slot', 'scene', '--input', str(source), '--subject', 'null'], cwd=unrelated, env=env)
+        self.assertIn('undefined', rejected.exception.stderr)
+        self.assertFalse((session / 'assets').exists())
+        (session / 'session.json').write_text(json.dumps(state), encoding='utf-8')
         result = self.python_entry(package / 'Create-Skin.py', ['asset', '--session', str(session), '--slot', 'scene', '--input', str(source), '--subject', 'null'], cwd=unrelated, env=env)
         self.assertEqual(json.loads(result.stdout)['target'], [32, 16])
         self.assertTrue(Path(json.loads(result.stdout)['image']).is_relative_to(package))
+        # Inspection-rule changes invalidate validation, not the user's unchanged
+        # visual acceptance; status reports staleness without running a client.
+        state = json.loads((session / 'session.json').read_text(encoding='utf-8'))
+        state['controlContrast'] = {'auditRevision': 'outdated-synthetic-rules', 'states': {}}
+        state['previews']['complete'] = {'revision': 'synthetic-complete', 'contrast': {'passed': True}}
+        state['confirmations']['complete'] = {'revision': 'synthetic-complete', 'note': 'Synthetic prior acceptance'}
+        (session / 'session.json').write_text(json.dumps(state), encoding='utf-8')
+        stale = self.python_entry(package / 'Create-Skin.py', ['status', '--session', str(session)], cwd=unrelated, env=env)
+        stale_status = json.loads(stale.stdout)
+        self.assertEqual(stale_status['completeContrast'], {'passed': False, 'stale': True})
+        self.assertIn('complete', stale_status['confirmations'])
         self.assert_public_unchanged(package, manifest)
 
     def test_usage_zip_configures_independently_without_launching_a_client(self):
         package, unrelated, env, manifest = self.pack_and_extract('Skin_Usage')
         self.check_modules_and_build(package, unrelated, env)
         self.assertNotIn('runtime/renderer/authoring.mjs', manifest['files'])
+        for profile in ['26.1103', '26.1111']:
+            self.assertNotIn('runtime/adapters/authoring-' + profile + '.json', manifest['files'])
+            self.assertNotIn('runtime/adapters/authoring-controls-' + profile + '.json', manifest['files'])
+            self.assertIn('runtime/adapters/codex-' + profile + '.json', manifest['files'])
         self.assertEqual(json.loads((package / 'runtime/runtime-profile.json').read_text(encoding='utf-8')), {'schemaVersion': 1, 'role': 'usage'})
         # Trap any accidental process/client activity while exercising the real entrypoint.
         script = "import sys,runpy;from pathlib import Path;root=Path(sys.argv[1]);sys.path.insert(0,str(root/'runtime/scripts'));import python_launcher as m\ndef forbidden(*a,**k): raise AssertionError('No client/process activity during configure')\nm.WindowsHost=forbidden;m.subprocess.Popen=forbidden;sys.argv=[str(root/'Start-Skin.py'),'configure','--proxy-mode','direct','--state-root',sys.argv[2]];runpy.run_path(sys.argv[0],run_name='__main__')"

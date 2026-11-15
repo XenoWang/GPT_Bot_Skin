@@ -1,8 +1,8 @@
-import {validatePack,validateManifest,requiredAssets,fitImage,declarations,sidebarSections,decorationCss,rgba,chatSceneFit,sidebarsCollapsed,topbarGap,transcriptClipBottom,panoramaFit,opacityOptions,withOpacityOverrides,transcriptFadeStops,regionLabel,skinLanguage,skinText,skinError,skinDisplayName,validateTranslations,scenePlacement} from './core.mjs';
+import {validatePack,validateManifest,requiredAssets,fitImage,declarations,sidebarSections,decorationCss,controllerButtonImage,rgba,chatSceneFit,sidebarsCollapsed,topbarGap,transcriptClipBottom,panoramaFit,opacityOptions,withOpacityOverrides,transcriptFadeStops,regionLabel,skinLanguage,skinText,skinError,skinDisplayName,validateTranslations,scenePlacement} from './core.mjs';
 const KEY='__codexAppearanceV1',MARK='data-codex-appearance',OWN='data-codex-appearance-owned';
 // Native transparent hit areas keep their original geometry and affordance.
 const HIT_ONLY_BUTTONS='[data-app-shell-main-surface] nav .vertical-scroll-fade-mask button,[class~="group/activity-header"] > button[aria-expanded]';
-const NEUTRAL_TEXT_REGIONS=new Set(['buttons','sidebarRows','composer','menus','dialogs','settings','inputs','questions','pageCards','tooltips','tabs']);
+const NEUTRAL_TEXT_REGIONS=new Set(['buttons','titlebar','navigation','sidebarRows','chatHeader','pageHeaders','composer','menus','dialogs','settings','inputs','questions','pageCards','tooltips','tabs']);
 const BASE=new URL('.',import.meta.url);
 const el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
 export class Store {
@@ -142,11 +142,11 @@ export class Appearance {
   const desired=new Map(),visualNodes=new Set(),clearNodes=new Set();
   const css=['[data-codex-appearance-bg]{isolation:isolate!important;background-color:transparent!important;background-image:none!important}[data-codex-appearance-static]{position:relative!important}[data-codex-appearance-clear]{background-color:transparent!important;background-image:none!important}[data-codex-appearance-clip]{clip-path:inset(0 0 var(--codex-appearance-clip-bottom,0px) 0)!important}[data-codex-appearance-fade]{mask-image:linear-gradient(to bottom,transparent var(--codex-appearance-fade-start,0px),#000 var(--codex-appearance-fade-end,0px))!important;mask-repeat:no-repeat!important;mask-size:100% 100%!important}'];this.counts={};
   for(const [name,rule]of Object.entries(this.pack.manifest.regions)){
-    if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,visual=background||rule.gradient||rule.ornament;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`)&&(name!=='buttons'||!n.matches?.(HIT_ONLY_BUTTONS)));
+    if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,solidTitlebar=name==='titlebar'&&!background&&!rule.gradient&&!!rule.style?.surface,visual=background||rule.gradient||rule.ornament||rule.decals?.length||solidTitlebar;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`)&&(name!=='buttons'||!n.matches?.(HIT_ONLY_BUTTONS)));
     if(name==='dialogs')nodes=[...new Set(nodes.map(n=>n.matches?.('[data-slot="popover-content"]')?n.querySelector('[class~="group/summary-panel"]')??n:n))];
     if(visual||this.adapter.outermostRegions?.includes(name))nodes=nodes.filter(n=>!nodes.some(parent=>parent!==n&&parent.contains(n)));this.counts[name]=nodes.length;
     for(const n of nodes){if(!desired.has(n))desired.set(n,new Set());desired.get(n).add(name);this.tag(n,name);if(visual){visualNodes.add(n);if(!this.mounted.has(n)){if(background)this.mountBackground(n,name,background,shared);else this.mountDecoration(n,name,rule);}else this.mounted.get(n)?.update();}}
-   const selector=`[${MARK}~="${name}"]`,style=rule.gradient?Object.fromEntries(Object.entries(rule.style??{}).filter(([key])=>!['surface','surfaceOpacity'].includes(key))):rule.style;if(name==='scrollbars'){const s=rule.style??{};if(s.text&&s.surface)css.push(`${selector}{scrollbar-color:${s.text} ${s.surface}!important}`);}else css.push(`${selector}{${declarations(style)}}`);
+   const selector=`[${MARK}~="${name}"]`,style=rule.gradient||solidTitlebar?Object.fromEntries(Object.entries(rule.style??{}).filter(([key])=>!['surface','surfaceOpacity'].includes(key))):rule.style;if(name==='scrollbars'){const s=rule.style??{};if(s.text&&s.surface)css.push(`${selector}{scrollbar-color:${s.text} ${s.surface}!important}`);}else css.push(`${selector}{${declarations(style)}}`);
     if(name==='dialogs'&&style?.surface)css.push(`${selector}[class~="group/summary-panel"]{--color-surface-elevated-secondary:${rgba(style.surface,style.surfaceOpacity??1)}!important}`);
     if(style?.text){
      if(NEUTRAL_TEXT_REGIONS.has(name))css.push(`${selector}{${['--color-text','--color-text-secondary','--color-text-tertiary','--color-codex-description','--button-text-color','--button-text-color-hover'].map(key=>key+':'+style.text+'!important').join(';')}}`);
@@ -158,7 +158,13 @@ export class Appearance {
    if(rule.style?.surface&&this.adapter.clearSurfaceImages?.includes(name))css.push(`${selector}{background-image:none!important}`);
    if(visual||rule.style?.surface)for(const pseudo of this.adapter.transparentPseudoSurfaces?.[name]??[])if(['::before','::after'].includes(pseudo))css.push(`${selector}${pseudo}{background-color:transparent!important;background-image:none!important}`);
    if(visual||rule.style?.surface)for(const target of this.adapter.transparentPseudoTargets?.[name]??[])css.push(`${selector} ${target}{background-color:transparent!important;background-image:none!important}`);
-   for(const component of this.adapter.nativeComponents?.[name]??[]){const variables=[],color=rule.style?.surface??rule.gradient?.stops?.[0]?.color,alpha=rule.gradient?.opacity??rule.style?.surfaceOpacity??1;if(color)for(const property of component.surfaceVars??[])variables.push(`${property}:${rule.gradient&&component.transparentForGradient?'transparent':rgba(color,alpha)}!important`);if(hover)for(const property of component.hoverVars??[])variables.push(`${property}:${rgba(hover.surface,hover.surfaceOpacity)}!important`);if(variables.length)css.push(`${selector} ${component.selector}{${variables.join(';')}}`);}
+   for(const component of this.adapter.nativeComponents?.[name]??[]){
+    const variables=[],color=rule.style?.surface??rule.gradient?.stops?.[0]?.color,alpha=rule.gradient?.opacity??rule.style?.surfaceOpacity??1;
+    if(color)for(const property of component.surfaceVars??[])variables.push(`${property}:${rule.gradient&&component.transparentForGradient?'transparent':rgba(color,alpha)}!important`);
+    if(rule.style?.text)for(const property of component.foregroundVars??[])variables.push(`${property}:${rule.style.text}!important`);
+    if(hover)for(const property of component.hoverVars??[])variables.push(`${property}:${rgba(hover.surface,hover.surfaceOpacity)}!important`);
+    if(variables.length)css.push(`${selector} ${component.selector}{${variables.join(';')}}`);
+   }
    if(visual||rule.style?.surface)for(const parent of nodes)for(const s of this.adapter.transparentSurfaces[name]??[])for(const n of parent.querySelectorAll(s)){n.setAttribute('data-codex-appearance-clear','');clearNodes.add(n);}
   }
   for(const [n,old]of this.oldMarks){const names=desired.get(n);if(!names){if(old===null)n.removeAttribute(MARK);else n.setAttribute(MARK,old);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');this.oldMarks.delete(n);}else{const tokens=new Set((old??'').split(' ').filter(Boolean));for(const name of names)tokens.add(name);n.setAttribute(MARK,[...tokens].join(' '));if(!visualNodes.has(n)){n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}}}
@@ -167,14 +173,19 @@ export class Appearance {
    if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(${HIT_ONLY_BUTTONS}):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}{${declarations(hover)}}`);}
   this.syncTranscriptClips();const text=css.join('\n');if(this.style.textContent!==text)this.style.textContent=text;this.diagnostics.textContent=this.t('diagnostics')+Object.entries(this.counts).map(([k,v])=>`${regionLabel(k,this.language,this.translations)} ${v}`).join(' · ');
  }
+ mountDecals(layer,rule){
+  for(const d of rule.decals??[]){const art=el('img');art.alt='';art.draggable=false;art.src=d.symbol?controllerButtonImage(d.symbol,d.color,d.accent):this.pack.assets[d.asset];art.setAttribute('data-codex-appearance-part','decal');art.style.cssText='position:absolute;height:auto;max-width:none;max-height:none;pointer-events:none;user-select:none';const [vertical,side]=d.placement.split('-');Object.assign(art.style,{width:d.width+'px',opacity:String(d.opacity),[vertical]:d.offset[1]+'px'});if(side==='center'){art.style.left=`calc(50% + ${d.offset[0]}px)`;art.style.transform='translateX(-50%)';}else art.style[side]=d.offset[0]+'px';layer.append(art);}
+ }
  mountDecoration(node,name,rule){
   const layer=el('div');layer.setAttribute(OWN,`decoration-${name}`);layer.setAttribute('aria-hidden','true');layer.style.cssText='position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1;border-radius:inherit;-webkit-app-region:initial!important';Object.assign(layer.style,decorationCss({gradient:rule.gradient,style:rule.style}));
+  if(name==='titlebar'&&!rule.gradient&&rule.style?.surface)layer.style.backgroundColor=rgba(rule.style.surface,rule.style.surfaceOpacity??1);
   if(rule.ornament){const ornament=el('div');ornament.setAttribute('data-codex-appearance-part','ornament');ornament.style.cssText='position:absolute;inset:0;pointer-events:none';ornament.style.opacity=String(rule.ornament.opacity);Object.assign(ornament.style,decorationCss({ornament:{...rule.ornament,opacity:1}},this.pack?.assets??{}));layer.append(ornament);}
+  this.mountDecals(layer,rule);
   if(getComputedStyle(node).position==='static')node.setAttribute('data-codex-appearance-static','');node.setAttribute('data-codex-appearance-bg','');node.prepend(layer);
   let ro=null,update=()=>{};
   if(name==='titlebar'&&this.adapter.titlebarGap){
    const spec=this.adapter.titlebarGap;let watched=new Set();
-   update=()=>{const scope=node.closest(spec.scope)??document,refs=new Set((spec.references??[]).flatMap(s=>[...scope.querySelectorAll(s)]).filter(n=>n!==node));for(const n of watched)if(!refs.has(n))ro.unobserve(n);for(const n of refs)if(!watched.has(n))ro.observe(n);watched=refs;const tops=[...refs].filter(n=>getComputedStyle(n).visibility!=='hidden').map(n=>n.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0).map(r=>r.top);const gap=topbarGap(node.getBoundingClientRect().bottom,tops,spec.maxGap??32);layer.style.bottom=(-gap)+'px';layer.dataset.gap=String(gap);};
+   update=()=>{const scope=node.closest(spec.scope)??document,refs=new Set((spec.references??[]).flatMap(s=>[...scope.querySelectorAll(s)]).filter(n=>n!==node));for(const n of watched)if(!refs.has(n))ro.unobserve(n);for(const n of refs)if(!watched.has(n))ro.observe(n);watched=refs;const tops=[...refs].filter(n=>getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')).map(n=>n.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0).map(r=>r.top);const gap=topbarGap(node.getBoundingClientRect().bottom,tops,spec.maxGap??32);layer.style.bottom=(-gap)+'px';layer.dataset.gap=String(gap);};
    ro=new ResizeObserver(update);ro.observe(node);
   }
   this.mounted.set(node,{layer,ro,update});update();
@@ -239,7 +250,7 @@ export class Appearance {
    layer.dataset.layout=sections.split?'split':'merged';
    if(layout){this.counts.sidebarHeader=nativeHeader?1:0;layer.dataset.layoutFallback=String(layout.mode==='split'&&!sections.split);}
   };
-   node.prepend(layer);const ro=new ResizeObserver(update),disconnect=ro.disconnect.bind(ro);ro.observe(node);ro.disconnect=()=>{disconnect();if(shared)window.removeEventListener('resize',update);};if(shared)window.addEventListener('resize',update);this.mounted.set(node,{layer,ro,update});update();
+   this.mountDecals(layer,this.pack.manifest.regions[name]);node.prepend(layer);const ro=new ResizeObserver(update),disconnect=ro.disconnect.bind(ro);ro.observe(node);ro.disconnect=()=>{disconnect();if(shared)window.removeEventListener('resize',update);};if(shared)window.addEventListener('resize',update);this.mounted.set(node,{layer,ro,update});update();
  }
  async importFolder(files){
   if(!files.length||files.length>100)throw new Error(this.t('folderCount'));if(files.reduce((s,f)=>s+f.size,0)>48*1024*1024)throw new Error(this.t('folderSize'));if(new Set(files.map(f=>f.webkitRelativePath.split('/')[0])).size!==1)throw new Error(this.t('oneFolder'));

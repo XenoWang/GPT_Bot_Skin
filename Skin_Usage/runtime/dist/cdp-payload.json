@@ -1,4 +1,9 @@
 {
-  "revision": "afabb98b8a78edc931e654179eb8bc036edf1acd49342e28749fc86d849b2f55",
-  "bytes": 21400512
+  "revision": "eb1e452b973134f0319d8d267e6eadb363c67b9591882e878b8be4d703bd9449",
+  "bytes": 31026694,
+  "payloadFormat": 2,
+  "clientVersions": [
+    "26.1103.4239.0",
+    "26.1111.2228.0"
+  ]
 }

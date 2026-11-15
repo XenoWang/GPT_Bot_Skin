@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import vm from 'node:vm';
 import {windowController,selectNativeWindow,nativeWindowCommand} from '../scripts/window-control.mjs';
-import {inventory} from '../scripts/coverage-runner.mjs';
+import {inventory,stableViewport,viewportSnapshot} from '../scripts/coverage-runner.mjs';
 import {createSession,selectLayout,setSource,choosePalette,buildManifest,backgroundRevision,completeRevision,confirm} from '../../scripts/workflow.mjs';
 import {loadLocales,localeBundle,localizeError} from '../../scripts/localization.mjs';
 
@@ -70,9 +71,10 @@ test('native host dispatch preserves optional Python routing and argument bounda
  assert.throws(()=>nativeWindowCommand('fixture','delete',null,null,{}),/operation/);
 });
 
-function inventoryFixture({captureFailure=false,restoreFailure=false}={}){
+function inventoryFixture({captureFailure=false,restoreFailure=false,changedAtEnd=false,clientVersion='26.1103.4239.0'}={}){
  let size=[900,700],captures=0,closed=false;const actions=[],reports=[];
- const client={targetId:'fixture',clientVersion:'26.1103.4239.0',close(){closed=true;},page:{async evaluate(expression){
+ const client={targetId:'fixture',clientVersion,close(){closed=true;},page:{async evaluate(expression){
+   if(expression==='('+viewportSnapshot.toString()+')()')return {viewport:[size[0]+(changedAtEnd?2:0),size[1]],pixelRatio:2};
   if(expression.includes('function captureRegions')){
    if(captureFailure&&++captures===3)throw new Error('fixture capture interrupted');
    return {viewport:[...size],pixelRatio:2,canvas:{window:[...size],main:[size[0]-50,size[1]-40],mainOrigin:[50,40]},regionCoverage:[],candidates:[]};
@@ -84,8 +86,24 @@ function inventoryFixture({captureFailure=false,restoreFailure=false}={}){
   assert.fail('Unexpected DOM operation: '+expression.slice(0,80));
  }}};
  const controller={backend:'native',async normal(){actions.push('normal');size=[800,600];},async maximize(){actions.push('maximized');size=[1600,900];},async restore(){actions.push('restored');size=[900,700];if(restoreFailure)throw new Error('fixture restoration failed');return true;}};
- return {actions,reports,get closed(){return closed;},get size(){return size;},run:()=>inventory({statePath:'fixture',onProgress:async report=>reports.push(structuredClone(report))},{connect:async()=>client,windows:async()=>controller})};
+ return {actions,reports,get closed(){return closed;},get size(){return size;},run:(services={})=>inventory({statePath:'fixture',onProgress:async report=>reports.push(structuredClone(report))},{connect:async()=>client,windows:async()=>controller,stabilize:async()=>({viewport:[...size],pixelRatio:2}),...services})};
 }
+
+test('viewport sampling waits through late window-decoration changes with a bounded virtual clock',async()=>{
+ let time=0,reads=0;const result=await stableViewport({evaluate:async()=>{reads++;return {viewport:[1920,time<400?1030:1032],pixelRatio:1};}},{now:()=>time,sleep:async ms=>{time+=ms;}});
+ assert.deepEqual(result,{viewport:[1920,1032],pixelRatio:1});assert.ok(time>=400&&time<3000);assert.ok(reads<40);
+ let unstableTime=0,unstableReads=0;await assert.rejects(stableViewport({evaluate:async()=>({viewport:[1920,++unstableReads%2?1030:1032],pixelRatio:1})},{now:()=>unstableTime,sleep:async ms=>{unstableTime+=ms;}}),/did not stabilize/);assert.ok(unstableTime<=3200);assert.ok(unstableReads<50);
+ let delayedTime=0,delayedReads=0;await assert.rejects(stableViewport({evaluate:async()=>{if(++delayedReads>1)delayedTime+=3100;return {viewport:[1920,1032],pixelRatio:1};}},{now:()=>delayedTime,sleep:async ms=>{delayedTime+=ms;}}),/did not stabilize/);
+ for(const value of [{viewport:[0,10],pixelRatio:1},{viewport:[10,10],pixelRatio:0},{viewport:[10,10],pixelRatio:NaN}])await assert.rejects(stableViewport({evaluate:async()=>value},{sleep:async()=>assert.fail('Invalid data must not be retried')}),/Invalid viewport/);
+});
+
+test('viewport snapshot reads geometry only and failed stability restores the original window',async()=>{
+ const context={innerWidth:1280,innerHeight:720,devicePixelRatio:2,document:new Proxy({},{get(){throw Error('No content access');}})};
+ assert.deepEqual(JSON.parse(JSON.stringify(vm.runInNewContext('('+viewportSnapshot.toString()+')()',context))),{viewport:[1280,720],pixelRatio:2});
+ const f=inventoryFixture();await assert.rejects(f.run({stabilize:async()=>{throw Error('Viewport did not stabilize after window transition');}}),/did not stabilize/);assert.deepEqual(f.size,[900,700]);assert.equal(f.actions.at(-1),'restored');assert.ok(f.closed);
+ const mismatch=inventoryFixture();await assert.rejects(mismatch.run({stabilize:async()=>({viewport:[1,1],pixelRatio:2})}),/Viewport changed/);assert.equal(mismatch.reports.at(-1).measurement,undefined);assert.ok(mismatch.closed);
+ const late=inventoryFixture({changedAtEnd:true});await assert.rejects(late.run(),/Viewport changed/);assert.equal(late.reports.at(-1).measurement.maximized,false);assert.equal(late.reports.at(-1).measurement.reason,'viewport-changed');assert.equal(late.reports.at(-1).coverage.restored,true);assert.deepEqual(late.size,[900,700]);
+});
 
 test('real inventory orchestration measures supplied viewports and restores after interrupted capture',async()=>{
  const good=inventoryFixture();const {report}=await good.run();
@@ -101,6 +119,13 @@ test('inventory keeps restoration failure as a blocking observation instead of c
  assert.equal(report.coverage.restored,false);assert.match(report.coverage.restoreError,/restoration failed/);assert.ok(fixture.closed);
  const s=skin();s.inventory.coverage.restored=report.coverage.restored;
  assert.throws(()=>buildManifest(s),/navigation-or-window-restoration-incomplete/);
+});
+
+test('current-client inventory binds its own profile while retaining measured geometry and restoration',async()=>{
+ const current=inventoryFixture({clientVersion:'26.1111.2228.0'}),legacy=inventoryFixture();
+ const a=(await current.run()).report,b=(await legacy.run()).report;
+ assert.equal(a.clientVersion,'26.1111.2228.0');assert.equal(a.adapterVersion,'26.1111.2228.0');assert.notEqual(a.binding,b.binding);
+ assert.deepEqual(a.measurement.canvas.window,[1600,900]);assert.deepEqual(a.measurement.windowed.canvas.window,[800,600]);assert.equal(a.coverage.restored,true);assert.equal(b.coverage.restored,true);assert.ok(current.closed&&legacy.closed);
 });
 
 function skin(){

@@ -56,6 +56,7 @@ export const PROBE=`(()=>({
  main:!!document.querySelector('[data-app-shell-main-surface],main.main-surface'),
  ready:!!window.__codexAppearanceV1?.style,
  revision:window.__codexAppearanceRevision??null,
+ adapterVersion:window.__codexAppearanceV1?.adapter?.version??null,
  counts:window.__codexAppearanceV1?.counts??null
 }))()`;
 export const REMOVE=`(()=>{window.__codexAppearanceV1?.destroy?.();delete window.__codexAppearanceRevision;return !document.querySelector('[data-codex-appearance-owned]')})()`;

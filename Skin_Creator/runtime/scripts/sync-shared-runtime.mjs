@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {buildPayload} from './build-cdp-payload.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 // Creator orchestration and temporary authoring controls stay outside Usage.
-export const SHARED_RUNTIME_FILES=Object.freeze(['adapters/codex-26.1103.json','renderer/core.mjs','renderer/runtime.mjs','scripts/build-cdp-payload.mjs','scripts/inspect-ui-regions.mjs','scripts/region-capabilities.mjs','scripts/cdp-companion.mjs','scripts/host-tools.mjs','scripts/python_host.py','scripts/python_launcher.py','scripts/Skin-LaunchConfig.ps1','scripts/release_package.py']);
+export const SHARED_RUNTIME_FILES=Object.freeze(['adapters/versions.json','adapters/codex-26.1103.json','adapters/codex-26.1111.json','renderer/core.mjs','renderer/runtime.mjs','scripts/adapter-registry.mjs','scripts/build-cdp-payload.mjs','scripts/inspect-ui-regions.mjs','scripts/region-capabilities.mjs','scripts/cdp-companion.mjs','scripts/cdp-transport.mjs','scripts/host-tools.mjs','scripts/python_host.py','scripts/python_launcher.py','scripts/Skin-LaunchConfig.ps1','scripts/release_package.py']);
 export const DERIVED_RUNTIME_FILES=Object.freeze(['dist/cdp-payload.js','dist/cdp-payload.json']);
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export async function syncSharedRuntime(usage){

@@ -1,0 +1,390 @@
+{
+  "schemaVersion": 2,
+  "id": "planeptune-sisters",
+  "name": "紫耀双星",
+  "regions": {
+    "chat": {
+      "enabled": true
+    },
+    "sidebar": {
+      "enabled": true,
+      "background": {
+        "asset": "assets/sidebar.png",
+        "blackOverlay": 0.6,
+        "subject": [
+          0.04290540540540537,
+          0.3,
+          0.9570945945945947,
+          0.81
+        ],
+        "fit": "subject-safe",
+        "maxScale": 1,
+        "blurFill": false
+      }
+    },
+    "titlebar": {
+      "enabled": true,
+      "style": {
+        "surface": "#21192F",
+        "surfaceOpacity": 1,
+        "border": "#8DC6E8",
+        "borderOpacity": 0.65,
+        "borderWidth": 0,
+        "text": "#FFFFFF"
+      },
+      "decals": [
+        {
+          "asset": "assets/decal-hairclip.png",
+          "width": 28,
+          "placement": "top-left",
+          "offset": [
+            360,
+            7
+          ],
+          "opacity": 0.9
+        },
+        {
+          "symbol": "A",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 24,
+          "placement": "top-center",
+          "offset": [
+            -180,
+            8
+          ],
+          "opacity": 0.82
+        },
+        {
+          "symbol": "B",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 24,
+          "placement": "top-center",
+          "offset": [
+            -60,
+            10
+          ],
+          "opacity": 0.82
+        },
+        {
+          "symbol": "X",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 24,
+          "placement": "top-center",
+          "offset": [
+            60,
+            8
+          ],
+          "opacity": 0.82
+        },
+        {
+          "symbol": "Y",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 24,
+          "placement": "top-center",
+          "offset": [
+            180,
+            10
+          ],
+          "opacity": 0.82
+        },
+        {
+          "asset": "assets/decal-n.png",
+          "width": 30,
+          "placement": "top-right",
+          "offset": [
+            154,
+            6
+          ],
+          "opacity": 0.9
+        }
+      ]
+    },
+    "navigation": {
+      "enabled": true,
+      "style": {
+        "surface": "#21192F",
+        "surfaceOpacity": 1,
+        "border": "#8DC6E8",
+        "borderOpacity": 0.65,
+        "borderWidth": 0,
+        "text": "#FFFFFF"
+      },
+      "decals": [
+        {
+          "symbol": "up",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 22,
+          "placement": "top-left",
+          "offset": [
+            8,
+            416
+          ],
+          "opacity": 0.72
+        },
+        {
+          "symbol": "left",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 22,
+          "placement": "top-left",
+          "offset": [
+            22,
+            448
+          ],
+          "opacity": 0.72
+        },
+        {
+          "symbol": "right",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 22,
+          "placement": "top-left",
+          "offset": [
+            8,
+            480
+          ],
+          "opacity": 0.72
+        },
+        {
+          "symbol": "down",
+          "color": "#F3EFFF",
+          "accent": "#9165BD",
+          "width": 22,
+          "placement": "top-left",
+          "offset": [
+            22,
+            512
+          ],
+          "opacity": 0.72
+        }
+      ]
+    },
+    "sidebarRows": {
+      "enabled": true,
+      "style": {
+        "surface": "#21192F",
+        "surfaceOpacity": 0,
+        "borderWidth": 0,
+        "text": "#FFFFFF"
+      }
+    },
+    "chatHeader": {
+      "enabled": true,
+      "style": {
+        "surface": "#21192F",
+        "surfaceOpacity": 0,
+        "borderWidth": 0,
+        "text": "#FFFFFF"
+      }
+    },
+    "userMessages": {
+      "enabled": true,
+      "style": {
+        "surface": "#542B87",
+        "surfaceOpacity": 0.85,
+        "border": "#A88AC8",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#FFFFFF"
+      }
+    },
+    "assistantMessages": {
+      "enabled": true,
+      "style": {
+        "surface": "#21192F",
+        "surfaceOpacity": 0,
+        "borderWidth": 0,
+        "text": "#FFFFFF"
+      }
+    },
+    "composer": {
+      "enabled": true,
+      "style": {
+        "surface": "#261C35",
+        "surfaceOpacity": 1,
+        "border": "#80669E",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#FFFFFF"
+      }
+    },
+    "codeBlocks": {
+      "enabled": true,
+      "style": {
+        "surface": "#100F1B",
+        "surfaceOpacity": 1,
+        "border": "#51415F",
+        "borderOpacity": 1,
+        "borderWidth": 1
+      }
+    },
+    "tables": {
+      "enabled": true,
+      "style": {
+        "surface": "#100F1B",
+        "surfaceOpacity": 1,
+        "border": "#51415F",
+        "borderOpacity": 1,
+        "borderWidth": 1
+      }
+    },
+    "menus": {
+      "enabled": true,
+      "style": {
+        "surface": "#100F1B",
+        "surfaceOpacity": 1,
+        "border": "#80669E",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#FFFFFF"
+      }
+    },
+    "pageHeaders": {
+      "enabled": true,
+      "style": {
+        "surface": "#21192F",
+        "surfaceOpacity": 0,
+        "borderWidth": 0,
+        "text": "#FFFFFF"
+      }
+    },
+    "inputs": {
+      "enabled": true,
+      "style": {
+        "surface": "#1B1527",
+        "surfaceOpacity": 1,
+        "border": "#80669E",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#FFFFFF"
+      }
+    },
+    "dialogs": {
+      "enabled": true,
+      "style": {
+        "surface": "#100F1B",
+        "surfaceOpacity": 1,
+        "border": "#80669E",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#FFFFFF"
+      }
+    },
+    "questions": {
+      "enabled": true,
+      "style": {
+        "surface": "#100F1B",
+        "surfaceOpacity": 1,
+        "border": "#80669E",
+        "borderOpacity": 1,
+        "borderWidth": 1,
+        "text": "#FFFFFF"
+      }
+    }
+  },
+  "scene": {
+    "scope": "main",
+    "background": {
+      "asset": "assets/chat.png",
+      "blackOverlay": 0.6,
+      "subject": [
+        0.35,
+        0.007540485829959524,
+        0.8,
+        0.9924595141700404
+      ],
+      "fit": "subject-safe",
+      "maxScale": 1,
+      "blurFill": false
+    },
+    "regions": [
+      "chat"
+    ],
+    "placements": [
+      {
+        "viewport": [
+          1342,
+          756
+        ],
+        "pixelRatio": 1,
+        "frame": [
+          52,
+          44,
+          1290,
+          712
+        ],
+        "source": [
+          1868,
+          988
+        ],
+        "image": [
+          -28.085020242914993,
+          0,
+          1346.17004048583,
+          712
+        ]
+      },
+      {
+        "viewport": [
+          1920,
+          1032
+        ],
+        "pixelRatio": 1,
+        "frame": [
+          52,
+          44,
+          1868,
+          988
+        ],
+        "source": [
+          1868,
+          988
+        ],
+        "image": [
+          0,
+          0,
+          1868,
+          988
+        ]
+      }
+    ]
+  },
+  "sidebarLayout": {
+    "mode": "split",
+    "header": {
+      "asset": "assets/sidebarHeader.png",
+      "blackOverlay": 0.6,
+      "subject": [
+        0.537655320945946,
+        0.07,
+        0.9095412584459459,
+        0.84
+      ],
+      "fit": "subject-safe",
+      "maxScale": 1,
+      "blurFill": false
+    },
+    "body": {
+      "asset": "assets/sidebarBody.png",
+      "blackOverlay": 0.6,
+      "subject": [
+        0.09911317567567571,
+        0.3,
+        0.9008868243243242,
+        0.81
+      ],
+      "fit": "subject-safe",
+      "maxScale": 1,
+      "blurFill": false
+    }
+  },
+  "hover": {
+    "surface": "#8050B5",
+    "surfaceOpacity": 0.38
+  }
+}

@@ -1,13 +1,29 @@
-import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {managedPage} from './managed-page.mjs';
 import {windowController} from './window-control.mjs';
 import {captureRegions,makeCatalog} from './inspect-ui-regions.mjs';
+import {registeredProfile,readAdapter,adapterJSON} from './adapter-registry.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const settle=()=>new Promise(resolve=>setTimeout(resolve,250));
 const bindingFor=(client,adapter,plan)=>createHash('sha256').update(JSON.stringify([client.clientVersion,adapter,plan,client.targetId])).digest('hex');
+
+export function viewportSnapshot(){return {viewport:[innerWidth,innerHeight],pixelRatio:devicePixelRatio};}
+// Window decorations can settle after the native placement acknowledgement.
+// Clock/sleep are injectable only for offline orchestration tests, never a Skin option.
+export async function stableViewport(page,{now=()=>performance.now(),sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}={}){
+ const start=now();let previous=null,stableSince=start;
+ while(now()-start<=3000){
+  const value=await page.evaluate('('+viewportSnapshot.toString()+')()');
+  if(!value||!Array.isArray(value.viewport)||value.viewport.length!==2||value.viewport.some(n=>!Number.isInteger(n)||n<=0)||!Number.isFinite(value.pixelRatio)||value.pixelRatio<=0||value.pixelRatio>8)throw new Error('Invalid viewport measurement');
+  const key=JSON.stringify(value),time=now();if(time-start>3000)throw new Error('Viewport did not stabilize after window transition');if(key!==previous){previous=key;stableSince=time;}
+  if(time-start>=500&&time-stableSince>=240)return value;
+  await sleep(80);
+ }
+ throw new Error('Viewport did not stabilize after window transition');
+}
+function sameViewport(sample,observed){return !!observed&&sample.pixelRatio===observed.pixelRatio&&JSON.stringify(sample.viewport)===JSON.stringify(observed.viewport);}
 
 // Only known navigation attributes and structural state are read. No text/value/URL scraping.
 export function navigateKnown(kind,key){
@@ -27,9 +43,18 @@ export function navigationReached(kind,key,selector){
 export function saveNavigation(){
  const active=document.activeElement;
  if(active?.matches('input,textarea,[contenteditable="true"]'))return {ready:false,reason:'editable-focused'};
- const selected=[...document.querySelectorAll('[data-sidebar-destination],[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true');});
+ const visible=n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');};
+ const current=n=>n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true';
+ const selected=[...document.querySelectorAll('[data-sidebar-destination],[data-settings-panel-slug]')].filter(n=>visible(n)&&current(n));
+ const routes=selected.map(n=>{const attribute=n.getAttribute('data-settings-panel-slug')!==null?'data-settings-panel-slug':'data-sidebar-destination';return {attribute,value:n.getAttribute(attribute)};});
+ const rows=[...document.querySelectorAll('[data-app-action-sidebar-thread-row]')].filter(n=>visible(n)&&(n.getAttribute('data-app-action-sidebar-thread-selected')==='true'||n.getAttribute('aria-current')==='page'));
+ const attributes=['data-app-action-sidebar-thread-host-id','data-app-action-sidebar-thread-id','data-app-action-sidebar-thread-kind'];
+ const thread=rows.length===1?Object.fromEntries(attributes.map(k=>[k,rows[0].getAttribute(k)])):null;
+ const conversation=[...document.querySelectorAll('.thread-scroll-container,.messaging-embedded .conversation-viewport')].some(visible);
  const frame=document.querySelector('[data-app-shell-frame]');
- window.__codexCreatorNavigation={selected,active,leftOpen:frame?.getAttribute('data-app-shell-sidebar-open')};return {ready:true,restorable:selected.length>0};
+ const restorable=routes.every(route=>typeof route.value==='string'&&route.value.length>0)&&rows.length<=1&&(!thread||Object.values(thread).every(v=>typeof v==='string'&&v.length>0))&&(!conversation||!!thread)&&(routes.length>0||!!thread);
+ // Opaque identity stays in renderer memory; reports contain only capability booleans.
+ window.__codexCreatorNavigation={selected,routes,thread,restorable,active,leftOpen:frame?.getAttribute('data-app-shell-sidebar-open')};return {ready:true,restorable};
 }
 export function sidebarState(desired,configuredLabels){
  const frame=document.querySelector('[data-app-shell-frame]'),value=frame?.getAttribute('data-app-shell-sidebar-open');
@@ -43,11 +68,27 @@ export function sidebarState(desired,configuredLabels){
 export async function restoreNavigation(required=false){
  const available=n=>{if(!n.isConnected)return false;const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]');};
  const state=window.__codexCreatorNavigation;delete window.__codexCreatorNavigation;
- if(!state)return false;let restored=state.selected.length>0||!required;
- for(const n of state.selected){if(available(n))n.click();else restored=false;}
- await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
- if(required)for(const n of state.selected)if(!available(n)||!(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true'))restored=false;
- if(state.active?.isConnected)state.active.focus({preventScroll:true});return restored;
+ if(!state)return false;
+ const current=n=>n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'||['active','selected','checked'].includes(n.getAttribute('data-state'))||n.getAttribute('data-selected')==='true';
+ const waitFor=async get=>{for(let attempt=0;attempt<20;attempt++){const value=get();if(value)return value;await new Promise(resolve=>setTimeout(resolve,50));}return null;};
+ const unique=(selector,matches)=>{const nodes=[...document.querySelectorAll(selector)].filter(n=>available(n)&&matches(n));return nodes.length===1?nodes[0]:null;};
+ try{
+  // A resumed inventory may not navigate at all. Clicking "home" here would lose the chat.
+  if(!required)return true;
+  if(!state.restorable)return false;
+  for(const route of state.routes){
+   const find=()=>unique('['+route.attribute+']',n=>n.getAttribute(route.attribute)===route.value);
+   const node=await waitFor(find);if(!node)return false;node.click();
+   if(!await waitFor(()=>{const n=find();return n&&current(n);}))return false;
+  }
+  if(state.thread){
+   const matches=n=>Object.entries(state.thread).every(([key,value])=>n.getAttribute(key)===value);
+   const find=()=>unique('[data-app-action-sidebar-thread-row]',matches);
+   const node=await waitFor(find);if(!node)return false;node.click();
+   if(!await waitFor(()=>{const rows=[...document.querySelectorAll('[data-app-action-sidebar-thread-row]')].filter(n=>available(n)&&(n.getAttribute('data-app-action-sidebar-thread-selected')==='true'||n.getAttribute('aria-current')==='page'));return rows.length===1&&matches(rows[0]);}))return false;
+  }
+  return true;
+ }finally{if(state.active?.isConnected)state.active.focus({preventScroll:true});}
 }
 export function coverageBlockers(report,regions,excluded=[]){
  const rows=report.coverage?.states??[];
@@ -93,10 +134,45 @@ export function refreshNavigationEvidence(report,controls){
  }
  return report;
 }
-export async function authoringControls(){
- const value=JSON.parse(await readFile(path.join(ROOT,'adapters/authoring-controls-26.1103.json'),'utf8'));
- if(!value||typeof value.version!=='string'||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates)||value.externalStates!==undefined&&!Array.isArray(value.externalStates)||value.protectedShellStates!==undefined&&(!Array.isArray(value.protectedShellStates)||value.protectedShellStates.some(id=>!value.protectedStates.includes(id)||value.externalStates?.includes(id)||navigationRoute(id,value).kind!=='settings')))throw new Error('Invalid authoring controls configuration');
+export async function authoringControls(version){
+ const profile=await registeredProfile(version,ROOT),value=await adapterJSON('authoring-controls-'+profile+'.json',ROOT);
+ if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid authoring controls configuration');
+ if(value.semanticGraphics!==undefined&&(!Array.isArray(value.semanticGraphics)||value.semanticGraphics.length>16||value.semanticGraphics.some(selector=>typeof selector!=='string'||!selector.trim()||selector.length>512)))throw new Error('Invalid authoring controls configuration');
+ if(!value||value.version!==version||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates)||value.externalStates!==undefined&&!Array.isArray(value.externalStates)||value.protectedShellStates!==undefined&&(!Array.isArray(value.protectedShellStates)||value.protectedShellStates.some(id=>!value.protectedStates.includes(id)||value.externalStates?.includes(id)||navigationRoute(id,value).kind!=='settings')))throw new Error('Invalid authoring controls configuration');
  return value;
+}
+export async function authoringConfiguration(version){
+ const profile=await registeredProfile(version,ROOT);
+ const [adapter,plan,controls]=await Promise.all([readAdapter(version,ROOT),adapterJSON('authoring-'+profile+'.json',ROOT),authoringControls(version)]);
+ if(plan?.version!==version||!Array.isArray(plan.destinations)||!Array.isArray(plan.settings)||!Array.isArray(plan.manualStates))throw new Error('Authoring plan/client version mismatch');
+ return {adapter,plan,controls};
+}
+export async function refreshAdapterMapping({statePath,targetId,previous,previousAdapter,onProgress=async()=>{}},{connect=managedPage,configuration=authoringConfiguration}={}){
+ if(previous?.schemaVersion!==1||previous.kind!=='codex-ui-inventory'||!previous.measurement?.maximized||previous.coverage?.restored!==true||!previousAdapter?.regions)throw new Error('Profile refresh requires a complete restored inventory and its previous adapter');
+ const client=await connect(statePath,targetId);
+ try{
+  const {adapter,plan,controls}=await configuration(client.clientVersion);
+  if(previous.clientVersion!==client.clientVersion||previous.adapterVersion!==client.clientVersion||previousAdapter.version!==client.clientVersion||previous.binding!==bindingFor(client,previousAdapter,plan))throw new Error('Profile refresh requires the same verified client, window and plan');
+  // Adding scoped pseudo-element paint removal does not alter measured geometry
+  // or observed native structure. Appearance acceptance is still invalidated by
+  // the new binding; removals and every other non-selector change stay blocked.
+  const changedPaintRegions=[...new Set([...Object.keys(previousAdapter.transparentPseudoTargets??{}),...Object.keys(adapter.transparentPseudoTargets??{})])].filter(key=>JSON.stringify(previousAdapter.transparentPseudoTargets?.[key])!==JSON.stringify(adapter.transparentPseudoTargets?.[key]));
+  for(const key of changedPaintRegions){const old=previousAdapter.transparentPseudoTargets?.[key]??[],next=adapter.transparentPseudoTargets?.[key];if(!Array.isArray(next)||old.some(s=>!next.includes(s))||next.some(s=>typeof s!=='string'||!/^.+::(?:before|after)$/.test(s)))throw new Error('Profile refresh only adds scoped pseudo paint targets');}
+  const withoutRegions=value=>{const copy=structuredClone(value);delete copy.regions;delete copy.verification;delete copy.transparentPseudoTargets;return JSON.stringify(copy);};
+  if(withoutRegions(previousAdapter)!==withoutRegions(adapter))throw new Error('Profile refresh cannot change layout or non-selector configuration');
+  const changedRegions=[...new Set([...Object.keys(previousAdapter.regions),...Object.keys(adapter.regions)])].filter(key=>JSON.stringify(previousAdapter.regions[key])!==JSON.stringify(adapter.regions[key]));
+  const controlsOnly=new Set(['userMessages','assistantMessages','toolCards','changeSummary','attachments','codeBlocks','tables','menus','dialogs','settings','pageCards','questions','profileActivity','buttons','inputs','tooltips','scrollbars']);
+  if(changedRegions.some(key=>!controlsOnly.has(key)))throw new Error('Profile refresh cannot change scene geometry');
+  const current=await client.page.evaluate('('+viewportSnapshot.toString()+')()');
+  if(![previous.measurement.windowed,previous.measurement].filter(Boolean).some(p=>sameViewport(current,{viewport:p.canvas.window,pixelRatio:p.pixelRatio})))throw new Error('Profile refresh requires an already measured viewport');
+  const report=structuredClone(previous),changed=new Set(changedRegions),invalidatedStates=[];
+  for(const sample of report.samples??[])sample.regionCoverage=sample.regionCoverage.filter(row=>!changed.has(row.key));
+  for(const row of report.coverage.states)if(row.regions.some(key=>changed.has(key))){row.status='not-observed';row.reason='adapter-selectors-changed';delete row.sample;delete row.evidence;delete row.reused;invalidatedStates.push(row.id);}
+  const oldBinding=report.binding;report.binding=bindingFor(client,adapter,plan);report.adapterVersion=adapter.version;
+  report.adapterRefreshes=[...(report.adapterRefreshes??[]),{previousBinding:oldBinding,binding:report.binding,changedRegions,changedPaintRegions,invalidatedStates,at:new Date().toISOString()}];
+  refreshNavigationEvidence(report,controls);await onProgress(report);
+  return {report,catalog:makeCatalog(report),changedRegions,changedPaintRegions,invalidatedStates};
+ }finally{client.close();}
 }
 export function selectedSettingsPage(){
  const nodes=[...document.querySelectorAll('[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true');});
@@ -104,15 +180,17 @@ export function selectedSettingsPage(){
 }
 export async function captureSettings({statePath,targetId,previous,onProgress=async()=>{}},{connect=managedPage,capture=inventory}={}){
  if(!previous?.measurement?.maximized||!previous.coverage?.states?.length)throw new Error('Complete measured inventory before batch settings capture');
- const controls=await authoringControls();
- const [adapter,plan]=await Promise.all(['codex-26.1103.json','authoring-26.1103.json'].map(name=>readFile(path.join(ROOT,'adapters',name),'utf8').then(JSON.parse)));
  const client=await connect(statePath,targetId),{page}=client;
+ let configuration;try{
+  configuration=await authoringConfiguration(client.clientVersion);
+  if(previous.clientVersion!==client.clientVersion)throw new Error('Re-inventory after a version change');
+  if(previous.binding!==bindingFor(client,configuration.adapter,configuration.plan))throw new Error('Batch capture requires the same verified inventory window');
+ }catch(error){client.close();throw error;}
+ const {adapter,plan,controls}=configuration;
  let report=refreshNavigationEvidence(structuredClone(previous),controls),original,moved=false;
  const remember=async value=>{report=value;await onProgress(report);};
  const reached=async key=>{for(let i=0;i<8;i++){await settle();if(await page.evaluate('('+navigationReached.toString()+')("settings",'+JSON.stringify(key)+')'))return true;}return false;};
  try{
-  if(client.clientVersion!==controls.version||previous.clientVersion!==client.clientVersion||plan.version!==client.clientVersion)throw new Error('Re-inventory after a version change');
-  if(previous.binding!==bindingFor(client,adapter,plan))throw new Error('Batch capture requires the same verified inventory window');
   if(await page.evaluate('!!document.activeElement?.matches(\'input,textarea,[contenteditable="true"]\')'))throw new Error('Inventory paused: leave the editable field without changing its content');
   original=await page.evaluate('('+selectedSettingsPage.toString()+')()');
   if(!original||!/^[a-z][a-z0-9-]*$/.test(original))throw new Error('Open an ordinary settings page before batch capture');
@@ -147,11 +225,10 @@ export async function captureSettings({statePath,targetId,previous,onProgress=as
   try{await onProgress(report);}finally{client.close();}
  }
 }
-export async function inventory({statePath,targetId,previous=null,onProgress=async()=>{},manualState=null,shellOnly=false,authorizationNote=null},{connect=managedPage,windows=windowController}={}){
- const adapter=JSON.parse(await readFile(path.join(ROOT,'adapters/codex-26.1103.json'),'utf8'));
- const plan=JSON.parse(await readFile(path.join(ROOT,'adapters/authoring-26.1103.json'),'utf8'));
- const controls=await authoringControls();
+export async function inventory({statePath,targetId,previous=null,onProgress=async()=>{},manualState=null,shellOnly=false,authorizationNote=null},{connect=managedPage,windows=windowController,stabilize=stableViewport}={}){
  const client=await connect(statePath,targetId),{page}=client;
+ let configuration;try{configuration=await authoringConfiguration(client.clientVersion);}catch(error){client.close();throw error;}
+ const {adapter,plan,controls}=configuration;
  let windowControl,navigationSaved=false,navigationMoved=false;
  const binding=bindingFor(client,adapter,plan);
  let report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion:client.clientVersion,adapterVersion:adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[],samples:[],binding,coverage:{states:[],restored:null},targetLimitReached:false};
@@ -186,10 +263,10 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
   const saved=await page.evaluate('('+saveNavigation.toString()+')()');navigationSaved=saved.ready;
   if(!saved.ready)throw new Error('Inventory paused: leave the editable field without changing its content');
   await capture('initial');
-  await windowControl.normal();await settle();
-  const normal=await capture('windowed');
-  await windowControl.maximize();await settle();
-  const max=await capture('maximized');report.measurement={maximized:true,pixelRatio:max.pixelRatio,canvas:max.canvas,windowed:{pixelRatio:normal.pixelRatio,canvas:normal.canvas}};
+   await windowControl.normal();const normalViewport=await stabilize(page);
+   const normal=await capture('windowed');if(!sameViewport(normal,normalViewport))throw new Error('Viewport changed during inventory capture');
+   await windowControl.maximize();const maxViewport=await stabilize(page);
+   const max=await capture('maximized');if(!sameViewport(max,maxViewport))throw new Error('Viewport changed during inventory capture');report.measurement={maximized:true,pixelRatio:max.pixelRatio,canvas:max.canvas,windowed:{pixelRatio:normal.pixelRatio,canvas:normal.canvas}};
   const resumable=previous?.binding===binding&&JSON.stringify(previous.measurement)===JSON.stringify(report.measurement);
   if(resumable){report.samples.push(...previous.samples);report.coverageLabels.push(...previous.coverageLabels);}
   const steps=[...plan.destinations.map(key=>({id:'page-'+key,kind:'destination',key,regions:['chat','navigation','sidebar','pageHeaders','pageCards','composer']})),...plan.settings.map(key=>({id:'settings-'+key,kind:'settings',key,regions:['chat','settings','inputs','pageHeaders','buttons']}))];
@@ -215,7 +292,8 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
    }else row.reason=result.reason;
    await onProgress(report);
   }
-  for(const step of plan.manualStates){const old=resumable&&previous.coverage.states.find(s=>s.id===step.id&&s.status==='observed');report.coverage.states.push(old?{...old,sample:old.sample+3,reused:true}:{...step,status:'not-observed'});}
+   for(const step of plan.manualStates){const old=resumable&&previous.coverage.states.find(s=>s.id===step.id&&s.status==='observed');report.coverage.states.push(old?{...old,sample:old.sample+3,reused:true}:{...step,status:'not-observed'});}
+   if(!sameViewport(max,await page.evaluate('('+viewportSnapshot.toString()+')()'))){report.measurement.maximized=false;report.measurement.reason='viewport-changed';throw new Error('Viewport changed during inventory capture');}
   return {report,catalog:makeCatalog(report)};
  }finally{
    if(!manualState&&!shellOnly){

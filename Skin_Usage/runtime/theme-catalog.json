@@ -1,4 +1,9 @@
 {
   "schemaVersion": 1,
-  "skinIds": ["kurumi-twilight", "neutral-dark", "spring-sakura"]
+  "skinIds": [
+    "kurumi-twilight",
+    "neutral-dark",
+    "spring-sakura",
+    "planeptune-sisters"
+  ]
 }

@@ -70,6 +70,30 @@ function environment(t){
  return {a,Node,queries,raf,observers};
 }
 
+test('raster decals mount above scene masks without stretching, changing native hits or surviving restore',t=>{
+ const {a,Node}=environment(t),node=new Node('sidebar'),button=new Node('button');node.append(button);node.clientWidth=296;node.clientHeight=700;
+ const bg={asset:'assets/scene.png',blackOverlay:.6,subject:[.4,.2,.6,.8],fit:'subject-safe',maxScale:1,blurFill:false};
+ const decals=[{asset:'assets/badge.png',width:28,placement:'top-right',offset:[40,8],opacity:.9}];
+ a.pack={manifest:{regions:{sidebar:{enabled:true,background:bg,decals}}},assets:{'assets/scene.png':'scene-url','assets/badge.png':'badge-url'}};a.dimensions={'assets/scene.png':[296,700]};a.mountBackground(node,'sidebar',bg);
+ const layer=a.mounted.get(node).layer,art=layer.children.at(-1);assert.equal(art.src,'badge-url');assert.equal(art.style.width,'28px');assert.match(art.style.cssText,/height:auto/);assert.match(art.style.cssText,/pointer-events:none/);assert.equal(art.style.right,'40px');assert.equal(art.style.top,'8px');assert.equal(art.style.opacity,'0.9');assert.equal(art.draggable,false);assert.equal(layer.children[0].children.at(-1).style.cssText.includes('rgba(0,0,0,0.6)'),true);assert.equal(button.style.width,undefined);
+ a.clear();assert.deepEqual(node.children,[button]);
+ const titlebar=new Node('titlebar');a.mountDecoration(titlebar,'titlebar',{style:{surface:'#21192F'},decals});assert.equal(a.mounted.get(titlebar).layer.children[0].src,'badge-url');a.clear();assert.deepEqual(titlebar.children,[]);
+});
+
+test('single controller keys use independent inert centered nodes without asset lookup',t=>{
+ const {a,Node}=environment(t),titlebar=new Node('titlebar');a.pack={manifest:{regions:{}},assets:{}};
+ const keys=[{symbol:'A',color:'#F3EFFF',accent:'#9165BD',width:24,placement:'top-center',offset:[-180,9],opacity:.8},{symbol:'right',color:'#F3EFFF',accent:'#9165BD',width:22,placement:'top-center',offset:[120,7],opacity:.6}];
+ a.mountDecoration(titlebar,'titlebar',{decals:keys});const [first,second]=a.mounted.get(titlebar).layer.children;
+ assert.equal(first.style.left,'calc(50% + -180px)');assert.equal(second.style.left,'calc(50% + 120px)');assert.equal(first.style.transform,'translateX(-50%)');assert.equal(first.style.top,'9px');assert.equal(second.style.top,'7px');assert.equal(first.style.width,'24px');assert.match(first.style.cssText,/pointer-events:none/);assert.ok(first.src.startsWith('data:image/svg+xml,'));assert.notEqual(first.src,second.src);a.clear();assert.deepEqual(titlebar.children,[]);
+});
+
+test('current native footer pseudo masks are cleared only inside themed chat and restored on disable',async t=>{
+ const {a,Node,queries}=environment(t),native=JSON.parse(await readFile(new URL('../adapters/codex-26.1111.json',import.meta.url),'utf8')),chat=new Node('chat'),composer=new Node('composer');chat.append(composer);
+ a.adapter.regions={chat:['chat']};a.adapter.transparentPseudoTargets=native.transparentPseudoTargets;queries.set('chat',[chat]);a.pack={manifest:{regions:{chat:{enabled:true,style:{surface:'#000000'}}}}};a.refresh();
+ for(const pseudo of ['before','after'])assert.ok(a.style.textContent.includes(`[data-codex-appearance~="chat"] .footer-A8ZvKV::${pseudo}{background-color:transparent!important;background-image:none!important}`));
+ assert.equal(composer.getAttribute('data-codex-appearance-clear'),null);assert.deepEqual(chat.children,[composer]);a.pack.manifest.regions.chat.enabled=false;a.refresh();assert.doesNotMatch(a.style.textContent,/footer-A8ZvKV/);a.clear();assert.deepEqual(chat.children,[composer]);
+});
+
 test('runtime keeps the original image node and exposes sharp scenery only with both bars closed',t=>{
  const {a,Node}=environment(t),frame=new Node('frame'),rail=new Node('rail'),sidebar=new Node('sidebar'),chat=new Node('chat');frame.selectors.add('frame');frame.append(rail);frame.append(sidebar);frame.append(chat);frame.queries.set('rail',rail);frame.queries.set('sidebar',sidebar);rail.rect={right:52};sidebar.clientWidth=296;
  a.adapter.chatLayoutState={frame:'frame',rail:'rail',sidebar:'sidebar',leftOpen:'left-open',rightOpen:'right-open',responsive:'responsive'};frame.setAttribute('left-open','true');frame.setAttribute('right-open','false');frame.setAttribute('responsive','false');
@@ -149,6 +173,62 @@ test('shared titlebar scene fills the measured gap while ignoring cached referen
  content.rect.top=48;mounted.update();assert.equal(mounted.layer.style.bottom,'-12px');
  content.rect.top=36;mounted.update();assert.equal(mounted.layer.style.bottom,'0px');
  a.clear();assert.deepEqual(bar.children,[button]);assert.equal(window.listeners.get('resize').size,0);
+});
+
+for(const paint of ['solid','gradient','shared','emblem'])test(`refresh fills the titlebar gap for ${paint} without resizing native controls`,t=>{
+ const {a,Node,queries}=environment(t);
+ const globals=new Map(['innerWidth','innerHeight','devicePixelRatio'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
+ t.after(()=>{for(const[k,d]of globals){if(d)Object.defineProperty(globalThis,k,d);else delete globalThis[k];}});
+ globalThis.innerWidth=1000;globalThis.innerHeight=750;globalThis.devicePixelRatio=1;
+ globalThis.getComputedStyle=n=>({position:'relative',visibility:n.hidden?'hidden':'visible'});
+ const frame=new Node('frame'),bar=new Node('bar'),button=new Node('button'),content=new Node('content'),hidden=new Node('hidden'),zero=new Node('zero'),inert=new Node('inert');
+ frame.selectors.add('frame');frame.append(bar);frame.append(content);bar.append(button);const click=()=>17;button.onclick=click;
+ bar.rect={left:0,right:1000,top:0,bottom:36,width:1000,height:36};bar.clientWidth=1000;bar.clientHeight=36;
+ content.rect={left:52,right:1000,top:44,bottom:750,width:948,height:706};
+ hidden.rect={left:0,right:1000,top:0,bottom:100,width:1000,height:100};hidden.hidden=true;
+ zero.rect={left:0,right:0,top:0,bottom:0,width:0,height:0};inert.rect={...hidden.rect};inert.selectors.add('[inert],[aria-hidden="true"]');
+ frame.queries.set('content',[hidden,zero,inert,content]);queries.set('bar',[bar]);a.adapter.regions={titlebar:['bar']};a.adapter.titlebarGap={scope:'frame',references:['content'],maxGap:32};
+ const rule=['solid','emblem'].includes(paint)?{enabled:true,style:{surface:'#21192F',surfaceOpacity:.5,text:'#FFFFFF'}}:paint==='gradient'?{enabled:true,gradient:{angle:90,opacity:.5,stops:[{color:'#21192F',at:0},{color:'#542B87',at:1}]}}:{enabled:true};
+ if(paint==='emblem')rule.ornament={pattern:'cross-emblem',orientation:'horizontal',color:'#30223F',accent:'#8DC6E8',opacity:.4,scale:.5,placement:'top-right',offset:[154,8]};
+ a.pack={manifest:{regions:{titlebar:rule}},assets:{}};
+ if(paint==='shared'){
+  const bg={asset:'assets/shared.png',blackOverlay:.6,subject:[.4,.2,.6,.8],fit:'subject-safe',maxScale:1,blurFill:false};
+  a.pack.manifest.scene={scope:'window',regions:['titlebar'],background:bg};a.pack.assets[bg.asset]='synthetic-image';a.dimensions={[bg.asset]:[2000,1500]};
+ }
+ a.refresh();const mounted=a.mounted.get(bar);assert.ok(mounted);assert.equal(mounted.layer.style.bottom,'-8px');
+ assert.equal(bar.rect.height,36);assert.equal(bar.style.height,undefined);assert.equal(button.onclick,click);assert.match(mounted.layer.style.cssText,/pointer-events:none/);assert.match(mounted.layer.style.cssText,/-webkit-app-region:initial!important/);
+ if(['solid','emblem'].includes(paint)){
+  assert.equal(mounted.layer.style.backgroundColor,'rgba(33,25,47,0.5)');
+  const barRule=a.style.textContent.split('\n').find(row=>row.startsWith('[data-codex-appearance~="titlebar"]{'));
+  assert.doesNotMatch(barRule,/background-color/); // The half-opaque fill must not be painted twice.
+ }
+ if(paint==='emblem'){const ornament=mounted.layer.children[0];assert.equal(ornament.style.opacity,'0.4');assert.equal(ornament.style.backgroundRepeat,'no-repeat');assert.equal(ornament.style.backgroundPosition,'right 154px top 8px');assert.match(ornament.style.cssText,/pointer-events:none/);}
+ content.rect.top=48;content.rect.height=702;mounted.update();assert.equal(mounted.layer.style.bottom,'-12px');
+ content.rect.top=36;content.rect.height=714;mounted.update();assert.equal(mounted.layer.style.bottom,'0px');
+ a.pack.manifest.regions.titlebar.enabled=false;a.refresh();assert.equal(a.mounted.has(bar),false);assert.deepEqual(bar.children,[button]);assert.equal(button.onclick,click);
+ a.clear();assert.equal(window.listeners.get('resize')?.size??0,0);
+});
+
+test('navigation uses scoped neutral variables while preserving colored status paints',async t=>{
+ const {a,Node,queries}=environment(t),nav=new Node('nav'),status=new Node('path');nav.append(status);status.style.color='#FF6764';
+ const native=await adapter();queries.set('nav',[nav]);a.adapter.regions={navigation:['nav']};a.adapter.nativeComponents={navigation:native.nativeComponents.navigation};a.adapter.hoverTargets=['nav button'];a.adapter.activeTargets=['[data-codex-appearance~="sidebarRows"][aria-current="page"]'];
+ a.pack={manifest:{regions:{navigation:{enabled:true,style:{surface:'#21192F',text:'#FFFFFF'}}},hover:{surface:'#8050B5',surfaceOpacity:.38}}};a.refresh();
+ assert.match(a.style.textContent,/--color-text-tertiary:#FFFFFF!important/);assert.match(a.style.textContent,/aria-current="page"\]\{background-color:rgba\(128,80,181,0.38\)!important/);
+ assert.match(a.style.textContent,/button:has\(path\[stroke='var\(--color-usage-meter-track\)'\]\)\{--color-usage-meter-symbol:#FFFFFF!important\}/);
+ assert.doesNotMatch(a.style.textContent,/--color-usage-meter-(?:track|warning|fill):/);
+ assert.equal(status.style.color,'#FF6764');assert.ok(!a.style.textContent.includes('svg{color:'));
+ delete a.pack.manifest.regions.navigation.style.text;a.refresh();assert.doesNotMatch(a.style.textContent,/--color-usage-meter-symbol:/);a.clear();assert.equal(nav.getAttribute('data-codex-appearance'),null);
+});
+
+test('ordinary header regions supply explicit neutral text variables without descendant color overrides',t=>{
+ const {a,Node,queries}=environment(t),names=['titlebar','chatHeader','pageHeaders'];a.adapter.regions={};const regions={};
+ for(const name of names){const node=new Node(name);node.rect={left:0,right:1000,top:0,bottom:36,width:1000,height:36};queries.set(name,[node]);a.adapter.regions[name]=[name];regions[name]={enabled:true,style:{surface:'#21192F',surfaceOpacity:name==='titlebar'?1:0,text:'#FFFFFF'}};}
+ a.pack={manifest:{regions}};a.refresh();
+ for(const name of names){
+  const declarations=a.style.textContent.split('\n').filter(row=>row.startsWith(`[data-codex-appearance~="${name}"]{`)).join('\n');
+  assert.match(declarations,/--color-text-tertiary:#FFFFFF!important/);assert.match(declarations,/--color-codex-description:#FFFFFF!important/);
+ }
+ assert.ok(!a.style.textContent.includes(' *{color:'));a.clear();
 });
 
 test('footer masks clear with the chat background while the input keeps its black surface',async t=>{
@@ -327,12 +407,13 @@ test('transparent hit controls stay native and summary paint targets its visible
 });
 
 test('transcript clipping follows the whole composer stack and falls back when its wrapper is hidden',t=>{
- const {a,Node,queries}=environment(t),scope=new Node('scope'),content=new Node('content'),input=new Node('input'),stack=new Node('stack');stack.append(input);stack.selectors.add('[data-codex-composer-reference-drop-target]');
- scope.rect={top:0,bottom:500,width:800,height:500};content.rect={top:0,bottom:1000,width:800,height:1000};input.rect={top:450,bottom:500,width:800,height:50};stack.rect={top:300,bottom:500,width:800,height:200};
+ const {a,Node,queries}=environment(t),scope=new Node('scope'),content=new Node('content'),input=new Node('input'),stack=new Node('stack');scope.append(content);scope.append(stack);stack.append(input);stack.selectors.add('[data-codex-composer-reference-drop-target]');
+ // Native DOMRects supply horizontal edges as well as vertical geometry.
+ scope.rect={left:0,right:800,top:0,bottom:500,width:800,height:500};content.rect={left:0,right:800,top:0,bottom:1000,width:800,height:1000};input.rect={left:0,right:800,top:450,bottom:500,width:800,height:50};stack.rect={left:0,right:800,top:300,bottom:500,width:800,height:200};
  scope.queries.set('content',[content]);scope.queries.set('input',[input]);queries.set('[data-codex-appearance~="chat"] scope',[scope]);a.adapter.transcriptClips=[{scope:'scope',content:'content',composer:'input'}];a.pack={manifest:{regions:{chat:{enabled:true,style:{surface:'#000000'}}}}};a.syncTranscriptClips();
  assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'700px');assert.equal(a.clips.get(content).composer,stack);
- stack.rect.top=400;a.clips.get(content).update();assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'600px');
- stack.rect.width=0;a.syncTranscriptClips();assert.equal(a.clips.get(content).composer,input);assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'550px');
+ stack.rect.top=400;stack.rect.height=100;a.clips.get(content).update();assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'600px');
+ stack.rect.width=0;stack.rect.right=0;a.syncTranscriptClips();assert.equal(a.clips.get(content).composer,input);assert.equal(content.style.getPropertyValue('--codex-appearance-clip-bottom'),'550px');
  a.clear();assert.equal(content.getAttribute('data-codex-appearance-clip'),null);
 });
 

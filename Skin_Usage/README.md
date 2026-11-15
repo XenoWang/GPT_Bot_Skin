@@ -85,7 +85,11 @@ powershell.exe -NoProfile -File ".\runtime\scripts\Configure-CodexSkin.ps1" -Pro
 
 The Sakura folder contains only its manifest and referenced scene image. Its 1920×1032 image was proportionally enlarged and cropped; it is not claimed as native high-resolution output. The explicit package-local catalog preserves the original defaults. Shared code remains identical, while generated payloads may differ with each package's bundled themes.
 
-当前适配 Codex **26.1103.4239.0**，更新客户端后需重新检查原生 UI。Windows 原生对话框、嵌入网页和受保护内容不属于这个渲染器的主题范围。附赠图是为本方案生成/编辑的角色插画，不是官方授权素材声明。全景实际尺寸 **1774×887**；较大视口可能需要放大，应按实际显示尺寸检查清晰度。没有使用模糊填边，不宣称原生 4K。
+`runtime/themes/planeptune-sisters/` 为「紫耀双星」分开式主题，使用独立主横图、姐妹侧栏和史书横幅，包含顶栏与左侧菜单栏的独立按键点缀。默认黑色蒙层60%、用户气泡不透明度85%；背景、边框和每处点缀的透明度均由主题面板独立调整。主图成品1868×988，由原图等比放大约11.8%后保护裁切；不宣称原生高分辨率。目录只含清单及引用图片，不含提示词、个人配置或创作记录。
+
+Planeptune Twin Stars is a separate-image Skin with a split sidebar and independent controller-key decorations. Default black overlay is 60%; user-bubble opacity is 85%. The Skin panel exposes independent opacity controls. The 1868×988 main image was proportionally enlarged by about 11.8% and cropped with protected character bounds. Use the bundled updated runtime for its v2 decoration fields.
+
+当前精确版本适配见 [compatibility.md](references/compatibility.md)，更新客户端后需重新检查原生 UI。Windows 原生对话框、嵌入网页和受保护内容不属于这个渲染器的主题范围。附赠图是为本方案生成/编辑的角色插画，不是官方授权素材声明。全景实际尺寸 **1774×887**；较大视口可能需要放大，应按实际显示尺寸检查清晰度。没有使用模糊填边，不宣称原生 4K。
 
 实机覆盖、未验证项与自动回归状态见 [compatibility.md](references/compatibility.md)。把 Skill 放在本目录可直接让 GPT 读取；若需要自动发现，再按所用客户端的 Skill 安装入口安装。文件夹存在不代表客户端已自动加载它。
 

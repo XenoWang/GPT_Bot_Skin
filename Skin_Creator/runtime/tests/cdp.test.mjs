@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {debuggerAddress,pageTarget,Connection,officialDocument} from '../scripts/cdp-transport.mjs';
 import {payloadSource} from '../scripts/build-cdp-payload.mjs';
+import {bindPayloadVersion} from '../scripts/adapter-registry.mjs';
 
 test('accept only the exact loopback port and browser identity',()=>{
  assert.equal(debuggerAddress('ws://127.0.0.1:9335/devtools/browser/native-123',9335,'browser','native-123').id,'native-123');
@@ -37,7 +38,7 @@ test('current official app://- entrypoints are allowed, other internal paths rem
  assert.equal(officialDocument('app:','-.example','/index.html'),false);
 });
 test('built payload is valid classic JavaScript and refuses unrelated documents before mutation',async()=>{
- const {text}=await payloadSource();const script=new vm.Script(text);
+ const built=await payloadSource();const script=new vm.Script(bindPayloadVersion(built.text,built,'26.1103.4239.0'));
  let touched=0;const guard={destroy:()=>{touched++;throw new Error('Must not mutate unrelated page');}};
  const external=await script.runInNewContext({location:{protocol:'https:',hostname:'chatgpt.com'},window:{__codexAppearanceV1:guard}},{timeout:3000});
  assert.equal(external.blocked,'origin');assert.equal(touched,0);

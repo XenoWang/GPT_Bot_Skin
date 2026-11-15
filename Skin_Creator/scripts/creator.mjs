@@ -4,10 +4,10 @@ import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {createSession,selectLayout,setSource,setPrompt,requiredSlots,backgroundRevision,completeRevision,buildManifest,choosePalette,confirm,invalidate,summary,digest,PRESERVE_TEXT_REGIONS} from './workflow.mjs';
+import {createSession,selectLayout,setSource,setPrompt,requiredSlots,backgroundRevision,completeRevision,buildManifest,choosePalette,confirm,invalidate,summary,digest,PRESERVE_TEXT_REGIONS,referencedDecals} from './workflow.mjs';
 import {cropPlan,paletteCandidates,hex} from './image-math.mjs';
 import {writeCatalog} from './catalog.mjs';
-import {inventory,captureSettings,authoringControls,refreshNavigationEvidence} from '../runtime/scripts/coverage-runner.mjs';
+import {inventory,captureSettings,authoringControls,refreshNavigationEvidence,refreshAdapterMapping} from '../runtime/scripts/coverage-runner.mjs';
 import {makeCatalog} from '../runtime/scripts/inspect-ui-regions.mjs';
 import {managedPage} from '../runtime/scripts/managed-page.mjs';
 import {installAuthoring} from '../runtime/renderer/authoring.mjs';
@@ -43,9 +43,9 @@ async function lock(directory){
 }
 function parse(argv){
  const [command,...rest]=argv,args={command};
- const flags=new Set(['session','state','target','id','name','input','slot','subject','stage','revision','note','output','overlay']);
+ const flags=new Set(['session','state','target','id','name','input','slot','subject','stage','revision','note','output','overlay','format','retain-controls']);
  for(let i=0;i<rest.length;i+=2){const key=rest[i]?.replace(/^--/,'');if(!rest[i]?.startsWith('--')||!flags.has(key)||rest[i+1]===undefined||Object.hasOwn(args,key))throw new Error('Unknown, duplicate or incomplete option');args[key]=rest[i+1];}
- return args;
+ if(args.format!==undefined&&!['brief','full'].includes(args.format)||args['retain-controls']!==undefined&&(args.command!=='preview'||args.stage==='complete'||args['retain-controls']!=='true'))throw new Error('Unknown, duplicate or incomplete option');return args;
 }
 async function inputJSON(file){if(!file)throw new Error('--input JSON file is required');const bytes=await readFile(file);if(bytes.length>128*1024)throw new Error('Input JSON exceeds 128 KiB');return JSON.parse(bytes.toString('utf8'));}
 async function codec(directory,spec){
@@ -61,10 +61,13 @@ async function verifiedAssets(directory,session){
   if(JSON.stringify(info.target)!==JSON.stringify(slot.target))throw new Error('Canvas changed; reprocess '+slot.id);
   assets['assets/'+slot.id+'.png']='data:image/png;base64,'+bytes.toString('base64');
  }
+ for(const asset of referencedDecals(session)){
+  const info=session.decalAssets?.[asset];if(!info)throw new Error('Missing registered decal');const file=await realpath(path.resolve(directory,info.file));if(!inside(directory,file))throw new Error('Asset escapes the session');const bytes=await readFile(file);if(bytes.length>20*1024*1024||digest(bytes)!==info.hash)throw new Error('Decal changed or exceeds the pack limit');assets[asset]='data:image/png;base64,'+bytes.toString('base64');
+ }
  return assets;
 }
-async function draftPack(directory,session,stage){
- const manifest=buildManifest(session,stage),all=await verifiedAssets(directory,session),assets=Object.fromEntries(requiredAssets(manifest).map(name=>[name,all[name]]));return validatePack({manifest,assets});
+async function draftPack(directory,session,stage,retainControls=false){
+ const manifest=buildManifest(session,stage,retainControls),all=await verifiedAssets(directory,session),assets=Object.fromEntries(requiredAssets(manifest).map(name=>[name,all[name]]));return validatePack({manifest,assets});
 }
 async function bridge(args,action){
  if(!args.state)throw new Error('--state must identify the verified managed runtime session');
@@ -83,45 +86,77 @@ function foregroundSamples(report){
  return Object.fromEntries(Object.entries(colors).map(([k,values])=>[k,[...new Set(values)]]));
 }
 async function recordContrast(directory,session,report,slot='current'){
- if(!/^[a-z0-9-]{1,40}$/.test(slot)||report.revision!==completeRevision(session)||!report.runtimeRevision||typeof report.passed!=='boolean')throw new Error('Invalid or stale control contrast audit');
- const binding=digest([report.revision,report.runtimeRevision]);
- if(session.controlContrast?.binding!==binding)session.controlContrast={binding,revision:report.revision,runtimeRevision:report.runtimeRevision,states:{}};
+ if(!/^[a-z0-9-]{1,40}$/.test(slot)||report.revision!==completeRevision(session)||!report.runtimeRevision||!report.auditRevision||typeof report.passed!=='boolean')throw new Error('Invalid or stale control contrast audit');
+ const binding=digest([report.revision,report.runtimeRevision,report.auditRevision]);
+ if(session.controlContrast?.binding!==binding)session.controlContrast={binding,revision:report.revision,runtimeRevision:report.runtimeRevision,auditRevision:report.auditRevision,states:{}};
  const artifact='contrast-'+slot+'-'+digest(report).slice(0,12)+'.json';await atomicJSON(path.join(directory,artifact),report);
  session.controlContrast.states[slot]={passed:report.passed,notApplicable:report.notApplicable,checkedText:report.checkedText,checkedIcons:report.checkedIcons,violations:report.violations.length,truncated:report.truncated,skipped:report.skipped,artifact};
  const values=Object.values(session.controlContrast.states);
  return {passed:values.every(v=>v.passed),notApplicable:values.every(v=>v.notApplicable),states:Object.keys(session.controlContrast.states),checkedText:values.reduce((n,v)=>n+v.checkedText,0),checkedIcons:values.reduce((n,v)=>n+v.checkedIcons,0),violations:values.reduce((n,v)=>n+v.violations,0)};
 }
+const contrastOptions=controls=>({version:controls.version,semanticGraphics:controls.semanticGraphics??[]});
+const contrastRevision=controls=>digest([auditControlContrast.toString(),contrastOptions(controls)]);
+async function inspectContrast(page,controls){
+ const options=contrastOptions(controls);
+ const report=await page.evaluate('('+auditControlContrast.toString()+')('+JSON.stringify(options)+')');
+ return {...report,auditRevision:contrastRevision(controls)};
+}
+async function contrastRecovery(report,t){
+ if(report.passed||!report.violations.length)return null;
+ try{const {recoveryForContrast}=await import('./recovery.mjs');return await recoveryForContrast(ROOT,report,t);}
+ catch{return {message:t('recovery.unavailable'),matches:[],matchedCount:0,unavailable:true};}
+}
 export async function run(argv=process.argv.slice(2)){
- const locales=await loadLocales(),systemLanguage=selectLanguage(locales,await systemLocale());currentLocale=localeBundle(locales,systemLanguage);
+ const locales=await loadLocales();currentLocale=localeBundle(locales,selectLanguage(locales,Intl.DateTimeFormat().resolvedOptions().locale));
  const args=parse(argv),directory=await sessionDirectory(args.session),sessionFile=path.join(directory,'session.json'),release=await lock(directory);
  try{
   let session=await exists(sessionFile)?JSON.parse(await readFile(sessionFile,'utf8')):null;
-  if(!session){if(args.command!=='start')throw new Error('Run start first');session=createSession(args.id??'skin-'+Date.now(),args.name??'My Skin',systemLanguage);await atomicJSON(sessionFile,session);}
+  if(!session){if(args.command!=='start')throw new Error('Run start first');const systemLanguage=selectLanguage(locales,await systemLocale());currentLocale=localeBundle(locales,systemLanguage);session=createSession(args.id??'skin-'+Date.now(),args.name??'My Skin',systemLanguage);await atomicJSON(sessionFile,session);}
   if(session.schemaVersion!==1)throw new Error('Unsupported creator session version');
-  if(session.inventory)refreshNavigationEvidence(session.inventory,await authoringControls());
+  const controls=session.inventory?await authoringControls(session.inventory.clientVersion):null;if(session.inventory)refreshNavigationEvidence(session.inventory,controls);
+  if(controls&&session.controlContrast&&session.controlContrast.auditRevision!==contrastRevision(controls)&&session.previews.complete)session.previews.complete.contrast={passed:false,stale:true};
   currentLocale=localeBundle(locales,session.selection?.language??session.suggestedLanguage);const t=(key,values)=>translate(currentLocale,key,values);
   const save=()=>atomicJSON(sessionFile,session);
   let result;
   switch(args.command){
-   case 'start':case 'inventory':case 'capture':case 'capture-settings':case 'capture-shell':{
+   case 'start':case 'inventory':case 'capture':case 'capture-settings':case 'capture-shell':case 'refresh-adapter':{
     if(!args.state)throw new Error('Inventory requires --state; start the bundled managed runtime first');
     const before=session.inventory?.binding,measurement=JSON.stringify(session.inventory?.measurement);
     const options={statePath:args.state,targetId:args.target,previous:session.inventory,manualState:['capture','capture-shell'].includes(args.command)?args.slot:null,shellOnly:args.command==='capture-shell',authorizationNote:args.note,onProgress:async report=>{session.inventory=report;await atomicJSON(path.join(directory,'inventory.json'),report);await save();}};
-    const data=await (args.command==='capture-settings'?captureSettings(options):inventory(options));
+    const data=await (args.command==='refresh-adapter'?refreshAdapterMapping({...options,previousAdapter:await inputJSON(args.input)}):args.command==='capture-settings'?captureSettings(options):inventory(options));
     session.inventory=data.report;const labels=Object.fromEntries(await Promise.all(['en','zh-CN'].map(async code=>[code,JSON.parse(await readFile(path.join(ROOT,'runtime','locales',code+'.json'),'utf8'))])));
     session.catalog=makeCatalog(data.report,labels);session.foregrounds=foregroundSamples(data.report);
     for(const region of session.catalog.regions)if(!region.sharedScene&&region.key!=='scrollbars'){region.configuration.push('borderWidth');if(!PRESERVE_TEXT_REGIONS.includes(region.key))region.configuration.push('text');}
-    if(before!==data.report.binding||measurement!==JSON.stringify(data.report.measurement)){invalidate(session,'prompt');session.selection=null;}
+    if(args.command==='refresh-adapter')invalidate(session,'background');
+    else if(before!==data.report.binding||measurement!==JSON.stringify(data.report.measurement)){invalidate(session,'prompt');session.selection=null;}
     const catalog=await writeCatalog(path.join(directory,'catalog'),data.report,session.catalog,currentLocale);
-    await atomicJSON(path.join(directory,'regions.json'),session.catalog);result={...summary(session),catalog,unclassifiedCandidates:session.catalog.candidates.length,question:t('question.layout')};break;
+    await atomicJSON(path.join(directory,'regions.json'),session.catalog);result={...summary(session),catalog,unclassifiedCandidates:session.catalog.candidates.length,...(args.command==='refresh-adapter'?{changedRegions:data.changedRegions,invalidatedStates:data.invalidatedStates}:{question:t('question.layout')})};break;
    }
    case 'status':result=summary(session);break;
+   case 'recovery':{const {lookupRecovery}=await import('./recovery.mjs');result=await lookupRecovery(ROOT,args.note??args.slot,t);break;}
+   case 'recovery-record':{const {recordRecovery}=await import('./recovery.mjs');result={...await recordRecovery(ROOT,directory,await inputJSON(args.input),atomicJSON),message:t('recovery.recorded')};break;}
+   case 'diagnose':{
+    if(args.slot!=='titlebar')throw new Error('Unknown diagnostic slot');
+    if(!args.state)throw new Error('Inventory requires --state; start the bundled managed runtime first');
+    const {diagnoseTitlebar}=await import('./recovery.mjs'),client=await managedPage(args.state,args.target);let report;
+    try{if(client.clientVersion!==session.inventory?.clientVersion)throw new Error('Re-inventory after a version change');report=await client.page.evaluate('('+diagnoseTitlebar.toString()+')()');if(report.clientVersion!==client.clientVersion)throw new Error('Runtime/client version mismatch');}finally{client.close();}
+    const artifact='diagnosis-titlebar-'+digest(report).slice(0,12)+'.json';await atomicJSON(path.join(directory,artifact),report);session.diagnostics??={};session.diagnostics.titlebar={artifact,passed:report.passed};result={...report,artifact};break;
+   }
    case 'select':{const selection=selectLayout(session,await inputJSON(args.input),Object.keys(locales));currentLocale=localeBundle(locales,selection.language);await writeCatalog(path.join(directory,'catalog'),session.inventory,session.catalog,currentLocale);result={selection,slots:requiredSlots(session),question:t('question.source')};break;}
    case 'source':result=setSource(session,await inputJSON(args.input));break;
    case 'prompt':result=setPrompt(session,await inputJSON(args.input));await atomicJSON(path.join(directory,'generation-request.json'),result);break;
    case 'confirm':{
     if(args.stage!=='prompt')await verifiedAssets(directory,session);
     result=confirm(session,args.stage,args.revision,args.note);break;
+   }
+   case 'decal':{
+    if(!session.selection||!args.input||!/^[-a-z0-9]{1,48}$/.test(args.slot??''))throw new Error('Choose layout and supply a safe decal slot and PNG input');
+    const source=await realpath(args.input),bytes=await readFile(source);if(bytes.length>20*1024*1024||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw new Error('Decal must be a PNG within 20 MiB');
+    const measured=await codec(directory,{input:source});if(measured.width>4096||measured.height>4096)throw new Error('Decal exceeds 4096 pixels');
+    const hash=digest(bytes),relative='assets/decal-'+args.slot+'-'+hash.slice(0,16)+'.png',asset='assets/decal-'+args.slot+'.png',output=path.join(directory,relative);await mkdir(path.dirname(output),{recursive:true});
+    if(await exists(output)){if(digest(await readFile(output))!==hash)throw new Error('Registered decal file changed');}else await writeFile(output,bytes,{flag:'wx'});
+    session.decalAssets??={};if(session.decalAssets[asset]?.hash!==hash){session.decalAssets[asset]={file:relative,hash,source,sourceHash:hash,size:[measured.width,measured.height]};invalidate(session,'complete');}
+    result={asset,size:[measured.width,measured.height],hash};break;
    }
    case 'asset':{
     if(!session.source)throw new Error('Choose an image source first');
@@ -160,16 +195,16 @@ export async function run(argv=process.argv.slice(2)){
    }
    case 'preview':{
     const stage=args.stage??'background';if(!['background','complete'].includes(stage))throw new Error('Invalid preview stage');
-    const pack=await draftPack(directory,session,stage),revision=stage==='background'?backgroundRevision(session):completeRevision(session);
-    result=await bridge(args,async(page,version)=>{if(version!==session.inventory.clientVersion)throw new Error('Re-inventory after a version change');const receipt=await page.evaluate('window.__codexAppearanceV1.creator.preview('+JSON.stringify(pack)+','+JSON.stringify(revision)+','+JSON.stringify(stage)+','+JSON.stringify(currentLocale)+')');if(stage==='complete'){await page.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');receipt.contrast=await page.evaluate('('+auditControlContrast.toString()+')()');}return receipt;});
-    if(stage==='complete')result.contrast=await recordContrast(directory,session,result.contrast);
-    if(!result?.applied||result.revision!==revision||result.stage!==stage)throw new Error('Preview receipt mismatch');session.previews[stage]=result;
+    const pack=await draftPack(directory,session,stage,args['retain-controls']==='true'),revision=stage==='background'?backgroundRevision(session):completeRevision(session);
+    result=await bridge(args,async(page,version)=>{if(version!==session.inventory.clientVersion)throw new Error('Re-inventory after a version change');const receipt=await page.evaluate('window.__codexAppearanceV1.creator.preview('+JSON.stringify(pack)+','+JSON.stringify(revision)+','+JSON.stringify(stage)+','+JSON.stringify(currentLocale)+')');if(stage==='complete'){await page.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');receipt.contrast=await inspectContrast(page,controls);}return receipt;});
+    if(stage==='complete'){const raw=result.contrast;result.contrast=await recordContrast(directory,session,raw);const recovery=await contrastRecovery(raw,t);if(recovery)result.recovery=recovery;}
+    if(!result?.applied||result.revision!==revision||result.stage!==stage)throw new Error('Preview receipt mismatch');if(args['retain-controls']==='true')result.retainedControls=true;session.previews[stage]=result;
     await atomicJSON(path.join(directory,stage+'.manifest.json'),pack.manifest);break;
    }
    case 'contrast':{
     if(session.previews.complete?.revision!==completeRevision(session))throw new Error('Preview the complete Skin before auditing contrast');
-    const report=await bridge(args,page=>page.evaluate('('+auditControlContrast.toString()+')()'));
-    result=await recordContrast(directory,session,report,args.slot??'current');session.previews.complete.contrast=result;break;
+    const report=await bridge(args,page=>inspectContrast(page,controls));
+    result=await recordContrast(directory,session,report,args.slot??'current');session.previews.complete.contrast=result;const recovery=await contrastRecovery(report,t);if(recovery)result.recovery=recovery;break;
    }
    case 'restore':result=await bridge(args,page=>page.evaluate('window.__codexAppearanceV1.creator.restore()'));session.previews={};break;
    case 'export':{
@@ -188,11 +223,18 @@ export async function run(argv=process.argv.slice(2)){
     for(const [name,bytes]of images)if(digest(await readFile(path.join(destination,name)))!==digest(bytes))throw new Error('Export readback failed');
     session.export={revision:completeRevision(session),path:destination,at:new Date().toISOString()};result={...session.export,files:images.length+1,excludedStates:session.selection.excludedStates};break;
    }
-   default:throw new Error('Commands: start, inventory, capture, capture-settings, capture-shell, status, select, source, prompt, confirm, asset, background, colors, palette-ui, palette-read, preview, contrast, restore, export');
+   default:throw new Error('Commands: start, inventory, refresh-adapter, capture, capture-settings, capture-shell, status, recovery, recovery-record, diagnose, select, source, prompt, confirm, asset, decal, background, colors, palette-ui, palette-read, preview, contrast, restore, export');
   }
   if(args.command!=='status'){session.events.push({command:args.command,at:new Date().toISOString()});await save();}
   if(result.slots)result.slots=result.slots.map(slot=>({...slot,description:t('slot.'+slot.id)}));
+  if(args.format==='brief'){
+   if(args.command==='status')return {id:result.id,language:currentLocale.locale,mode:result.selection?.mode,regions:result.selection?.regions.length??0,inventory:result.inventory,slots:result.slots?.map(({id,target})=>({id,target})),assets:result.assets,confirmations:result.confirmations,backgroundRevision:result.backgroundRevision,completeRevision:result.completeRevision,completeContrast:result.completeContrast};
+   return {...result,language:currentLocale.locale};
+  }
   return {...result,language:currentLocale.locale,languages:Object.values(locales).map(l=>({locale:l.locale,name:l.name}))};
  }finally{await release();}
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))run().then(result=>console.log(JSON.stringify(result,null,2))).catch(error=>{console.error(currentLocale?localizeError(currentLocale,error.message):error.message);process.exitCode=1;});
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))run().then(result=>console.log(JSON.stringify(result,null,2))).catch(async error=>{
+ console.error(currentLocale?localizeError(currentLocale,error.message):error.message);process.exitCode=1;
+ if(currentLocale)try{const {lookupRecovery}=await import('./recovery.mjs'),hint=await lookupRecovery(ROOT,error.message,key=>translate(currentLocale,key));if(hint.matches.length)console.error(JSON.stringify({recovery:hint}));}catch{/* Preserve the original error if optional recovery data is unavailable. */}
+});

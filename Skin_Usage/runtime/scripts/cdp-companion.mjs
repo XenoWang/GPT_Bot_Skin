@@ -5,6 +5,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {debuggerAddress,pageTarget,endpointJSON,Connection,PROBE,REMOVE} from './cdp-transport.mjs';
 import {ownerCommand} from './host-tools.mjs';
+import {clientVersionFromState,bindPayloadVersion} from './adapter-registry.mjs';
 const exec=promisify(execFile),HERE=path.dirname(fileURLToPath(import.meta.url));
 const args=process.argv.slice(2);const mode=args[0];const statePath=args[1];
 if(!['watch','remove','inspect'].includes(mode)||!statePath)throw new Error('Usage: cdp-companion.mjs watch|remove|inspect <state.json>');
@@ -16,9 +17,13 @@ async function owner(){const command=ownerCommand(statePath);await exec(command.
 async function identity(){const v=await endpointJSON(state.port,'/json/version');debuggerAddress(v.webSocketDebuggerUrl,state.port,'browser',state.browserId);}
 async function status(data){const temp=path.join(stateDir,'status.json.tmp');await writeFile(temp,JSON.stringify({at:new Date().toISOString(),...data},null,2));await rename(temp,path.join(stateDir,'status.json'));}
 await owner();await identity();
+let payload=null,revision=null,clientVersion=null;
+if(mode==='watch')try{
+ clientVersion=clientVersionFromState(state);
+ const metadata=JSON.parse(await readFile(path.join(HERE,'..','dist','cdp-payload.json'),'utf8'));
+ payload=bindPayloadVersion(await readFile(path.join(HERE,'..','dist','cdp-payload.js'),'utf8'),metadata,clientVersion);revision=metadata.revision;
+}catch(error){await status({mode,state:'blocked-client-version',error:error.message});throw error;}
 const anchor=await new Connection(state.browserUrl).open();
-const payload=mode==='watch'?await readFile(path.join(HERE,'..','dist','cdp-payload.js'),'utf8'):null;
-const revision=mode==='watch'?JSON.parse(await readFile(path.join(HERE,'..','dist','cdp-payload.json'),'utf8')).revision:null;
 const sessions=new Map(),failures=new Map();let alive=true,round=0;process.on('SIGINT',()=>alive=false);process.on('SIGTERM',()=>alive=false);
 try{
  do{
@@ -35,14 +40,14 @@ try{
    const p=await c.evaluate(PROBE);if(!p?.shell||!p.sidebar||!p.main)continue;matched++;
    if(mode==='remove'){if(!await c.evaluate(REMOVE))throw new Error('Theme removal incomplete');}
    else if(mode==='watch'){
-    if(!p.ready||p.revision!==revision){if(anchor.closed)break;await c.evaluate(payload);}
-    const after=await c.evaluate(PROBE);if(after.ready&&after.revision===revision){installed++;counts.push(after.counts);}
+    if(!p.ready||p.revision!==revision||p.adapterVersion!==clientVersion){if(anchor.closed)break;await c.evaluate(payload);}
+    const after=await c.evaluate(PROBE);if(after.ready&&after.revision===revision&&after.adapterVersion===clientVersion){installed++;counts.push(after.counts);}else throw new Error('Versioned theme attachment was not observed');
    }else counts.push(p.counts);
    failures.delete(target.id);
    }catch(e){sessions.get(target.id)?.close();sessions.delete(target.id);if(mode!=='watch')throw e;failures.set(target.id,(failures.get(target.id)??0)+1);console.error('Theme attachment temporarily unavailable: '+e.message);}
   }
   const blocked=[...failures].filter(([id,n])=>ids.has(id)&&n>=3).length;
-  const record={mode,matched,installed,blockedTargets:blocked,regionCounts:counts,state:mode==='watch'?(blocked?'blocked-injection':installed?'active':'waiting-for-shell'):mode};
+  const record={mode,matched,installed,blockedTargets:blocked,regionCounts:counts,...(clientVersion?{clientVersion,revision}:{}),state:mode==='watch'?(blocked?'blocked-injection':installed?'active':'waiting-for-shell'):mode};
   await status(record);if(mode!=='watch'){console.log(JSON.stringify(record));if(!matched)process.exitCode=2;break;}
   if(blocked){process.exitCode=2;break;}await new Promise(r=>setTimeout(r,1500));
  }while(alive&&!anchor.closed);

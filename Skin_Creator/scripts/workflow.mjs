@@ -5,13 +5,15 @@ import {paletteCandidates,readableSurface,contrast} from './image-math.mjs';
 // Color-bearing content keeps native semantic foregrounds. Explicit text
 // affects mapped ordinary surfaces, never a universal descendant selector.
 export const PRESERVE_TEXT_REGIONS=Object.freeze(['codeBlocks','toolCards','changeSummary','profileActivity','tables']);
+function imageRegion(session,key){return session.selection.mode==='unified'?SCENE_REGIONS.includes(key):key==='chat'||key==='sidebar';}
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 function normalizeStyle(value,allowSurface=false){
- if(!object(value)||Object.keys(value).some(k=>!['text','border','borderWidth',...(allowSurface?['surface']:[])].includes(k)))throw new Error('Invalid explicit control style');
+ if(!object(value)||Object.keys(value).some(k=>!['text','border','borderWidth',...(allowSurface?['surface','surfaceOpacity']:[])].includes(k)))throw new Error('Invalid explicit control style');
  const result={};
  for(const [key,val]of Object.entries(value)){
    if(allowSurface&&key==='surface'&&val===null){result.surface=null;continue;}
-  if(key==='borderWidth'){if(typeof val!=='number'||!Number.isFinite(val)||val<0||val>8)throw new Error('Border width must be within 0..8');result[key]=val;}
+  if(key==='surfaceOpacity'){if(typeof val!=='number'||!Number.isFinite(val)||val<0||val>1||value.surface===null&&val!==0)throw new Error('Invalid explicit control style');result[key]=val;}
+  else if(key==='borderWidth'){if(typeof val!=='number'||!Number.isFinite(val)||val<0||val>8)throw new Error('Border width must be within 0..8');result[key]=val;}
   else{if(typeof val!=='string'||!/^#[\da-f]{6}$/i.test(val))throw new Error('Explicit colors must use #RRGGBB');result[key]=val.toUpperCase();}
  }
  return result;
@@ -20,6 +22,7 @@ export function controlStyle(palette,key,measured){
  if(palette.regionStyles?.[key]===null)return null;
  const general={...(palette.style??{})};if(PRESERVE_TEXT_REGIONS.includes(key))delete general.text;
  const explicit={...general,...palette.regionStyles?.[key]},foregrounds=explicit.text?[explicit.text]:measured;
+ if(explicit.surfaceOpacity===0&&!explicit.text)throw new Error('Transparent controls require an explicit foreground');
  if(!foregrounds?.length)throw new Error('Missing foreground color samples for '+key);
  let style;
   if(explicit.surface===null){
@@ -34,6 +37,7 @@ export function controlStyle(palette,key,measured){
  if(explicit.text)style.text=explicit.text;
  if(explicit.border){style.border=explicit.border;style.borderOpacity=1;}
  if(explicit.borderWidth!==undefined)style.borderWidth=explicit.borderWidth;
+ if(explicit.surfaceOpacity!==undefined)style.surfaceOpacity=explicit.surfaceOpacity;
  return style;
 }
 export const digest=value=>createHash('sha256').update(typeof value==='string'||Buffer.isBuffer(value)?value:JSON.stringify(value)).digest('hex');
@@ -90,7 +94,8 @@ export function setPrompt(session,input){
  if(value.revision!==session.prompt?.revision){session.prompt=value;invalidate(session,'prompt');}return value;
 }
 export function backgroundRevision(session){return digest({binding:session.inventory?.binding,measurement:session.inventory?.measurement,selection:session.selection,source:session.source,prompt:session.prompt?.revision,assets:Object.fromEntries(Object.entries(session.assets).sort().map(([key,a])=>[key,{hash:a.hash,subject:a.subject,target:a.target,overlay:a.overlay??.35}]))});}
-export function completeRevision(session){return digest({background:backgroundRevision(session),palette:session.palette,foregrounds:session.foregrounds});}
+export function referencedDecals(session){return [...new Set(Object.values(session.palette?.decals??{}).flatMap(items=>items.filter(d=>d.asset).map(d=>d.asset)))].sort();}
+export function completeRevision(session){const decals=referencedDecals(session);return digest({background:backgroundRevision(session),palette:session.palette,foregrounds:session.foregrounds,...(decals.length?{decals:decals.map(asset=>[asset,session.decalAssets?.[asset]?.hash])}:{})});}
 export function blockers(session){
  if(!session.selection)return ['layout-not-selected'];
  const blocked=coverageBlockers(session.inventory,session.selection.regions,session.selection.excludedStates);
@@ -101,7 +106,7 @@ export function blockers(session){
  if(session.source?.kind==='generated'&&session.confirmations.prompt?.revision!==session.prompt?.revision)blocked.push('prompt-not-confirmed');
  return blocked;
 }
-export function buildManifest(session,stage='background'){
+export function buildManifest(session,stage='background',retainControls=false){
  const blocked=blockers(session);if(blocked.length)throw new Error('Resolve or explicitly exclude coverage gaps: '+blocked.join(', '));
  const regions={},image=id=>{const a=session.assets[id];return {asset:'assets/'+id+'.png',blackOverlay:a.overlay??.35,subject:a.subject,fit:'subject-safe',maxScale:1,blurFill:false};};
  const result={schemaVersion:2,id:session.id,name:session.name,regions};
@@ -118,40 +123,62 @@ export function buildManifest(session,stage='background'){
   const profile={viewport:c.window,pixelRatio:measured.pixelRatio,frame,source:asset.target,image:[f.x,f.y,f.width,f.height]};
   if(!result.scene.placements.some(p=>JSON.stringify(p)===JSON.stringify(profile)))result.scene.placements.push(profile);
  }
- if(stage==='complete'){
-  if(session.confirmations.background?.revision!==backgroundRevision(session)||!session.palette)throw new Error('Confirm the current background and choose colors first');
+ if(stage==='complete'||stage==='background'&&retainControls){
+  if(!session.palette||stage==='complete'&&session.confirmations.background?.revision!==backgroundRevision(session))throw new Error('Confirm the current background and choose colors first');
   if(session.palette.mode==='theme'){const candidates=paletteCandidates(Object.values(session.assets).flatMap(a=>a.colors));if(session.palette.selected.some(c=>!candidates.includes(c)))throw new Error('The background palette changed; review the retained color selection');}
+  if(session.palette.hover)result.hover={...session.palette.hover};
   for(const key of session.selection.regions){
    if(result.scene?.regions.includes(key)||regions[key]?.background)continue;
     if(session.palette.regionStyles?.[key]===null)continue;
    if(key==='scrollbars'){regions[key]={enabled:true,style:{surface:session.palette.selected[0],text:session.palette.selected.at(-1)}};continue;}
-   regions[key]={enabled:true,style:controlStyle(session.palette,key,session.foregrounds?.[key])};
+   regions[key]={enabled:true,style:controlStyle(session.palette,key,session.foregrounds?.[key]),...(session.palette.ornaments?.[key]?{ornament:structuredClone(session.palette.ornaments[key])}:{})};
   }
+  for(const [key,decals]of Object.entries(session.palette.decals??{})){regions[key]??={enabled:true};regions[key].decals=structuredClone(decals);}
  }
  return validateManifest(result);
 }
 export function choosePalette(session,input){
  if(session.confirmations.background?.revision!==backgroundRevision(session))throw new Error('Confirm the current background before choosing control colors');
- if(!object(input)||Object.keys(input).some(k=>!['mode','colors','style','regionStyles'].includes(k)))throw new Error('Invalid palette options');
+ if(!object(input)||Object.keys(input).some(k=>!['mode','colors','style','regionStyles','hover','ornaments','decals'].includes(k)))throw new Error('Invalid palette options');
  if(!['theme','custom'].includes(input.mode)||!Array.isArray(input.colors)||!input.colors.length||input.colors.length>5||new Set(input.colors).size!==input.colors.length||input.colors.some(c=>!/^#[\da-f]{6}$/i.test(c)))throw new Error('Select one to five valid colors');
- if(input.mode!=='custom'&&(input.style!==undefined||input.regionStyles!==undefined))throw new Error('Explicit control styles require custom colors');
+ if(input.mode!=='custom'&&(input.style!==undefined||input.regionStyles!==undefined||input.hover!==undefined||input.ornaments!==undefined||input.decals!==undefined))throw new Error('Explicit control styles require custom colors');
  const candidates=paletteCandidates(Object.values(session.assets).flatMap(a=>a.colors));
  if(input.mode==='theme'&&input.colors.some(c=>!candidates.includes(c.toUpperCase())))throw new Error('Select from the displayed palette');
  const palette={mode:input.mode,selected:input.colors.map(c=>c.toUpperCase())};
+ if(input.hover!==undefined){
+  const h=input.hover;if(!object(h)||Object.keys(h).some(k=>!['surface','surfaceOpacity'].includes(k))||typeof h.surface!=='string'||!/^#[\da-f]{6}$/i.test(h.surface)||typeof h.surfaceOpacity!=='number'||!Number.isFinite(h.surfaceOpacity)||h.surfaceOpacity<0||h.surfaceOpacity>1)throw new Error('Invalid hover style');
+  palette.hover={surface:h.surface.toUpperCase(),surfaceOpacity:h.surfaceOpacity};
+ }
  if(input.style!==undefined)palette.style=normalizeStyle(input.style);
  if(input.regionStyles!==undefined){
   if(!object(input.regionStyles))throw new Error('Invalid region style overrides');
   palette.regionStyles={};
   for(const [key,value]of Object.entries(input.regionStyles)){
-    if(!session.selection.regions.includes(key)||SCENE_REGIONS.includes(key)||key==='scrollbars'&&value!==null)throw new Error('Explicit style requires a selected control region: '+key);
+    if(!session.selection.regions.includes(key)||imageRegion(session,key)||key==='scrollbars'&&value!==null)throw new Error('Explicit style requires a selected control region: '+key);
     if(value===null){palette.regionStyles[key]=null;continue;}
    const style=normalizeStyle(value,true);
    if(style.text&&PRESERVE_TEXT_REGIONS.includes(key))throw new Error('Preserve native semantic foregrounds for '+key);
    palette.regionStyles[key]=style;
   }
  }
+ if(input.ornaments!==undefined){
+  if(!object(input.ornaments))throw new Error('Invalid palette options');palette.ornaments={};
+  for(const [key,ornament]of Object.entries(input.ornaments)){
+   if(!session.selection.regions.includes(key)||imageRegion(session,key)||key==='scrollbars'||palette.regionStyles?.[key]===null||!object(ornament)||!['rose-vines','cross-emblem'].includes(ornament.pattern))throw new Error('Invalid palette options');
+   validateManifest({schemaVersion:1,id:session.id,name:session.name,regions:{[key]:{enabled:true,ornament}}});palette.ornaments[key]=structuredClone(ornament);
+  }
+ }
+ if(input.decals!==undefined){
+  if(!object(input.decals))throw new Error('Invalid palette options');palette.decals={};
+  for(const [key,decals]of Object.entries(input.decals)){
+   if(!session.selection.regions.includes(key)||!SCENE_REGIONS.includes(key))throw new Error('Decals require a selected scene region');
+   validateManifest({schemaVersion:2,id:session.id,name:session.name,regions:{[key]:{enabled:true,decals}}});
+   if(decals.some(d=>d.asset&&!Object.hasOwn(session.decalAssets??{},d.asset)))throw new Error('Register each decal image before choosing colors');
+   palette.decals[key]=structuredClone(decals);
+  }
+ }
  // Fail before changing the session; old accepted colors remain recoverable.
- if(input.style!==undefined||input.regionStyles!==undefined)for(const key of session.selection.regions)if(!SCENE_REGIONS.includes(key)&&key!=='scrollbars')controlStyle(palette,key,session.foregrounds?.[key]);
+ if(input.style!==undefined||input.regionStyles!==undefined||input.hover!==undefined||input.ornaments!==undefined)for(const key of session.selection.regions)if(!imageRegion(session,key)&&key!=='scrollbars')controlStyle(palette,key,session.foregrounds?.[key]);
  session.palette=palette;invalidate(session,'complete');return session.palette;
 }
 export function confirm(session,stage,revision,note){
@@ -164,5 +191,5 @@ export function confirm(session,stage,revision,note){
  session.confirmations[stage]={revision,note,at:new Date().toISOString()};return {stage,revision};
 }
 export function summary(session){
- return {id:session.id,language:session.selection?.language??session.suggestedLanguage,selection:session.selection,source:session.source,inventory:session.inventory?{version:session.inventory.clientVersion,observed:session.inventory.coverage?.states.filter(s=>s.status==='observed').length,gaps:session.inventory.coverage?.states.filter(s=>s.status!=='observed').map(s=>s.id),shellOnlyStates:session.inventory.coverage?.states.filter(s=>s.status==='observed'&&s.scope==='shell-only').map(s=>s.id),restored:session.inventory.coverage?.restored}:null,slots:session.selection?requiredSlots(session):[],assets:Object.keys(session.assets),confirmations:Object.keys(session.confirmations),backgroundRevision:session.selection?backgroundRevision(session):null,completeRevision:session.palette?completeRevision(session):null};
+ return {id:session.id,language:session.selection?.language??session.suggestedLanguage,selection:session.selection,source:session.source,inventory:session.inventory?{version:session.inventory.clientVersion,observed:session.inventory.coverage?.states.filter(s=>s.status==='observed').length,gaps:session.inventory.coverage?.states.filter(s=>s.status!=='observed').map(s=>s.id),shellOnlyStates:session.inventory.coverage?.states.filter(s=>s.status==='observed'&&s.scope==='shell-only').map(s=>s.id),restored:session.inventory.coverage?.restored}:null,slots:session.selection?requiredSlots(session):[],assets:Object.keys(session.assets),confirmations:Object.keys(session.confirmations),backgroundRevision:session.selection?backgroundRevision(session):null,completeRevision:session.palette?completeRevision(session):null,completeContrast:session.previews.complete?.contrast?{passed:session.previews.complete.contrast.passed,stale:session.previews.complete.contrast.stale===true}:null};
 }

@@ -1,5 +1,8 @@
 {
   "version": "26.1103.4239.0",
+  "semanticGraphics": [
+    "[data-app-navigation-rail] button svg:has(path[stroke='var(--color-usage-meter-track)'])"
+  ],
   "navigationAliases": {
     "page-library": {"kind": "destination", "key": "images"},
     "page-settings": {"kind": "settings", "key": "general-settings"},

@@ -7,6 +7,7 @@ import {Connection,endpointJSON,pageTarget,debuggerAddress} from './cdp-transpor
 import {REGIONS} from '../renderer/core.mjs';
 import {catalogFromReport} from './region-capabilities.mjs';
 import {ownerCommand} from './host-tools.mjs';
+import {clientVersionFromState,readAdapter} from './adapter-registry.mjs';
 
 const HERE=path.dirname(fileURLToPath(import.meta.url)),ROOT=path.dirname(HERE);
 
@@ -70,13 +71,13 @@ export async function run(args=process.argv.slice(2)){
   const data=await readFile(statePath);if(data.length>32768)throw new Error('Session file too large');const state=JSON.parse(data.toString('utf8'));
   const command=ownerCommand(statePath);await promisify(execFile)(command.file,command.args,{windowsHide:true,timeout:15000,maxBuffer:65536});
   debuggerAddress((await endpointJSON(state.port,'/json/version')).webSocketDebuggerUrl,state.port,'browser',state.browserId);
-  const adapter=JSON.parse(await readFile(path.join(ROOT,'adapters','codex-26.1103.json'),'utf8'));
+  const clientVersion=clientVersionFromState(state),adapter=await readAdapter(clientVersion,ROOT);
   const samples=[],targets=(await endpointJSON(state.port,'/json/list')).filter(t=>pageTarget(t,state.port));
   if(!targets.length)throw new Error('No allowed native page; do not broaden origin rules automatically');
   for(const t of targets.slice(0,8)){
    const c=await new Connection(t.webSocketDebuggerUrl).open();try{samples.push(await c.evaluate('('+captureRegions.toString()+')('+JSON.stringify(adapter)+')'));}finally{c.close();}
   }
-  report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion:String(state.packageFullName??'').match(/^OpenAI\.Codex_([0-9.]+)_/)?.[1]??'unknown',adapterVersion:adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[label],samples,targetLimitReached:targets.length>8};
+  report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion,adapterVersion:adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[label],samples,targetLimitReached:targets.length>8};
  }
  const catalog=makeCatalog(report,labels);await mkdir(path.dirname(output),{recursive:true});
  // Exclusive creation preserves previous captures and private evidence.

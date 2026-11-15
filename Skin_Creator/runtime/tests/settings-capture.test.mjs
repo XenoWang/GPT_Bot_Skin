@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-import {inventory,captureSettings,captureSettingsShell,authoringControls,navigationRoute,navigationObservationMatches,refreshNavigationEvidence,navigationReached,saveNavigation,restoreNavigation,sidebarState} from '../scripts/coverage-runner.mjs';
+import {inventory,captureSettings,captureSettingsShell,authoringControls,navigationRoute,navigationObservationMatches,refreshNavigationEvidence,navigationReached,saveNavigation,restoreNavigation,sidebarState,viewportSnapshot} from '../scripts/coverage-runner.mjs';
 import {createSession,summary} from '../../scripts/workflow.mjs';
 
 function settingsDom({detachedProfile=false,unexpectedDeparture=false}={}){
@@ -27,7 +27,7 @@ function settingsDom({detachedProfile=false,unexpectedDeparture=false}={}){
   const match=/^\[data-settings-panel-slug="([a-z-]+)"\]$/.exec(selector);
   return match?nodes.filter(n=>n.key===match[1]):[];
  }};
- const context=vm.createContext({document,window:{},getComputedStyle:n=>({visibility:n.hidden?'hidden':'visible',display:'block'}),requestAnimationFrame:fn=>fn(0)});
+ const context=vm.createContext({document,window:{},getComputedStyle:n=>({visibility:n.hidden?'hidden':'visible',display:'block'}),requestAnimationFrame:fn=>fn(0),setTimeout:fn=>fn()});
  const evaluate=async expression=>{const value=await vm.runInContext(expression,context);return value===undefined?null:JSON.parse(JSON.stringify(value));};
  return {ui,nodes,toggle,surface,document,evaluate};
 }
@@ -35,6 +35,7 @@ function settingsDom({detachedProfile=false,unexpectedDeparture=false}={}){
 async function batchFixture(options={}){
  const dom=settingsDom(options);let size=[1000,700],opened=0,closed=0;const reports=[];dom.ui.fullCaptures=0;dom.ui.shellCaptures=0;
  const page={async evaluate(expression){
+  if(expression==='('+viewportSnapshot.toString()+')()')return {viewport:[...size],pixelRatio:1};
   if(expression.includes('function captureRegions')){
    dom.ui.fullCaptures++;
    if(dom.ui.failCapture&&dom.ui.current==='notifications')throw new Error('synthetic capture interruption');
@@ -50,14 +51,14 @@ async function batchFixture(options={}){
   return dom.evaluate(expression);
  }};
  const connect=async(_state,target='settings-fixture')=>{opened++;return {page,targetId:target,clientVersion:'26.1103.4239.0',close(){closed++;}};};
- const measured=await inventory({statePath:'synthetic'},{connect,windows:async()=>({backend:'synthetic',async normal(){size=[1000,700];},async maximize(){size=[1600,900];},async restore(){size=[1000,700];return true;}})});
+ const measured=await inventory({statePath:'synthetic'},{connect,stabilize:async()=>({viewport:[...size],pixelRatio:1}),windows:async()=>({backend:'synthetic',async normal(){size=[1000,700];},async maximize(){size=[1600,900];},async restore(){size=[1000,700];return true;}})});
  dom.ui.open=true;
  const capture=options=>inventory(options,{connect});
  return {...dom,report:measured.report,reports,get opened(){return opened;},get closed(){return closed;},manual:(manualState,extra={})=>capture({statePath:'synthetic',previous:measured.report,manualState,...extra}),run:(options={})=>captureSettings({statePath:'synthetic',previous:measured.report,onProgress:async r=>reports.push(structuredClone(r)),...options},{connect,capture})};
 }
 
 test('version configuration maps independently observed native entry names and rejects selector injection',async()=>{
- const controls=await authoringControls();
+ const controls=await authoringControls('26.1103.4239.0');
  assert.deepEqual(navigationRoute('page-library',controls),{kind:'destination',key:'images'});
  assert.deepEqual(navigationRoute('page-settings',controls),{kind:'settings',key:'general-settings'});
  for(const [state,key]of [['settings-general','general-settings'],['settings-plugins','plugins-settings'],['settings-hooks','hooks-settings'],['settings-git','git-settings']])assert.deepEqual(navigationRoute(state,controls),{kind:'settings',key});
@@ -99,6 +100,63 @@ test('hidden cached selections do not prove navigation or become restoration tar
  assert.deepEqual(await d.evaluate('window.__codexCreatorNavigation.selected.map(n=>n.key)'),['general-settings']);
  d.nodes.find(n=>n.key==='general-settings').inert=true;
  assert.equal(await d.evaluate('('+restoreNavigation.toString()+')(true)'),false);assert.deepEqual(d.ui.clicks,[]);
+});
+
+// Oracle: inventory must return to the same synthetic host/id/kind, even when
+// native routing replaces DOM nodes. A selected home entry alone is insufficient.
+function conversationDom(){
+ const ui={route:'thread',selected:'original',clicks:[],ticks:0,readyAt:0,missing:false,wrongClick:false,ambiguous:false,hidden:false,focuses:0};
+ let rows=[],home;
+ const identity=id=>({'data-app-action-sidebar-thread-host-id':'fixture-host','data-app-action-sidebar-thread-id':id,'data-app-action-sidebar-thread-kind':'local'});
+ const node=(attrs,click)=>({isConnected:true,hidden:false,getAttribute(name){if(name==='aria-current')return attrs.id===ui.selected||attrs.home&&ui.route==='home'?'page':null;if(name==='data-app-action-sidebar-thread-selected')return attrs.id===ui.selected||ui.ambiguous?'true':'false';return attrs[name]??null;},getBoundingClientRect(){return {width:this.hidden?0:160,height:this.hidden?0:30};},closest(){return null;},matches(){return false;},click, get textContent(){assert.fail('Conversation text must not be read');},get value(){assert.fail('Draft values must not be read');}});
+ const replace=()=>{
+  for(const n of [home,...rows])if(n)n.isConnected=false;
+  rows=['original','other'].filter(id=>!ui.missing||id!=='original').map(id=>node({...identity(id),id},()=>{ui.clicks.push(id);ui.route='thread';ui.selected=ui.wrongClick?'other':id;}));
+  home=node({'data-sidebar-destination':'builtin:home',home:true},()=>{ui.clicks.push('home');ui.route='home';ui.selected=null;replace();ui.readyAt=ui.ticks+2;});
+ };
+ replace();
+ const active={isConnected:true,matches:()=>false,focus(options){assert.deepEqual(JSON.parse(JSON.stringify(options)),{preventScroll:true});ui.focuses++;}};
+ const document={activeElement:active,querySelector:selector=>selector==='[data-app-shell-frame]'?{getAttribute:()=>String(!ui.hidden)}:null,querySelectorAll(selector){
+  if(selector==='[data-sidebar-destination],[data-settings-panel-slug]'||selector==='[data-sidebar-destination]')return [home];
+  if(selector==='[data-app-action-sidebar-thread-row]'){rows.forEach(n=>n.hidden=ui.hidden);return ui.ticks>=ui.readyAt?rows:[];}
+  if(selector==='.thread-scroll-container,.messaging-embedded .conversation-viewport')return ui.route==='thread'?[node({},()=>assert.fail('No transcript clicks'))]:[];
+  return [];
+ }};
+ const context=vm.createContext({document,window:{},getComputedStyle:()=>({visibility:'visible'}),setTimeout:fn=>{ui.ticks++;fn();}});
+ const evaluate=async fn=>{const result=await vm.runInContext(fn,context);return JSON.parse(JSON.stringify(result));};
+ return {ui,context,document,save:()=>evaluate('('+saveNavigation.toString()+')()'),restore:required=>evaluate('('+restoreNavigation.toString()+')('+required+')'),leave(){ui.route='other';ui.selected=null;replace();}};
+}
+
+test('conversation restoration rebinds replaced native nodes and waits for the original thread',async()=>{
+ const d=conversationDom();
+ assert.deepEqual(await d.save(),{ready:true,restorable:true});
+ d.leave();assert.equal(await d.restore(true),true);
+ assert.equal(d.ui.route,'thread');assert.equal(d.ui.selected,'original');assert.deepEqual(d.ui.clicks,['original']);
+ assert.equal(d.ui.focuses,1);assert.equal(d.context.window.__codexCreatorNavigation,undefined);
+ // Starting with a selected builtin entry must still restore the concrete chat.
+ const both=conversationDom();both.ui.route='home';assert.equal((await both.save()).restorable,true);both.leave();
+ assert.equal(await both.restore(true),true);assert.equal(both.ui.route,'thread');assert.equal(both.ui.selected,'original');assert.deepEqual(both.ui.clicks,['home','original']);assert.ok(both.ui.ticks>=2);
+});
+
+test('an inventory that never navigated must not click home or alter the current thread',async()=>{
+ const d=conversationDom();d.ui.route='home';await d.save();d.ui.route='thread';
+ assert.equal(await d.restore(false),true);assert.deepEqual(d.ui.clicks,[]);assert.equal(d.ui.selected,'original');assert.equal(d.ui.route,'thread');
+});
+
+test('missing or misselected original threads cannot be reported as restored',async()=>{
+ for(const failure of ['missing','wrongClick']){
+  const d=conversationDom();d.ui.route='home';await d.save();d.ui[failure]=true;d.leave();
+  assert.equal(await d.restore(true),false);assert.notEqual(d.ui.selected,'original');assert.ok(d.ui.ticks<=42);assert.equal(d.context.window.__codexCreatorNavigation,undefined);
+  if(failure==='missing')assert.deepEqual(d.ui.clicks,['home']);
+ }
+});
+
+test('ambiguous, hidden or unidentified conversations disable automatic navigation without reading contents',async()=>{
+ for(const setup of [d=>{d.ui.ambiguous=true;},d=>{d.ui.hidden=true;},d=>{d.document.querySelectorAll=(original=>selector=>selector==='[data-app-action-sidebar-thread-row]'?[]:original(selector))(d.document.querySelectorAll);}]){
+  const d=conversationDom();setup(d);assert.equal((await d.save()).restorable,false);assert.equal(await d.restore(true),false);assert.deepEqual(d.ui.clicks,[]);
+ }
+ const focused=conversationDom();focused.document.activeElement.matches=()=>true;
+ assert.deepEqual(await focused.save(),{ready:false,reason:'editable-focused'});assert.equal(focused.context.window.__codexCreatorNavigation,undefined);
 });
 
 test('sidebar control labels can be configured without source-language edits',async()=>{
@@ -165,7 +223,7 @@ test('manual profile capture requires visible native structure without reading c
  const row=report.coverage.states.find(r=>r.id==='settings-profile');
  assert.equal(row.status,'observed');assert.equal(row.reason,null);assert.equal(row.evidence,'native-structure');
  assert.match(row.navigationKey,/^surface:profile-viewer:[a-f0-9]{64}$/);
- const controls=await authoringControls();refreshNavigationEvidence(report,controls);
+ const controls=await authoringControls('26.1103.4239.0');refreshNavigationEvidence(report,controls);
  assert.equal(row.status,'observed');
  controls.navigationAliases['settings-profile'].selector="[data-app-shell-main-surface] section[data-updated-profile]";
  refreshNavigationEvidence(report,controls);
@@ -205,7 +263,7 @@ test('protected shell capture requires explicit scope and target proof while ord
  assert.equal(f.ui.fullCaptures,baseline);assert.equal(f.ui.shellCaptures,1);assert.deepEqual(f.ui.clicks,[]);assert.deepEqual(f.report,original);
  const row=report.coverage.states.find(r=>r.id==='settings-passwords');assert.equal(row.status,'observed');assert.equal(row.scope,'shell-only');assert.equal(row.evidence,'native-shell-structure');
  const session=createSession('shell-fixture','Shell fixture','en');session.inventory=report;assert.deepEqual(summary(session).inventory.shellOnlyStates,['settings-passwords']);
- const controls=await authoringControls();refreshNavigationEvidence(report,controls);assert.equal(row.status,'observed');
+ const controls=await authoringControls('26.1103.4239.0');refreshNavigationEvidence(report,controls);assert.equal(row.status,'observed');
  f.ui.current='general-settings';const batch=await f.run({previous:report});assert.ok(!f.ui.clicks.includes('passwords'));assert.equal(batch.report.coverage.states.find(r=>r.id==='settings-passwords').scope,'shell-only');
  controls.protectedShellStates=[];refreshNavigationEvidence(report,controls);assert.equal(row.status,'not-observed');assert.equal(row.reason,'protected-state');assert.equal(row.sample,undefined);assert.equal(f.opened,f.closed);
 });

@@ -3,7 +3,6 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const VERSION=/^\d+\.\d+\.\d+\.\d+$/;
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 export const CLIENT_VERSION_TOKEN='__CODEX_SKIN_VERIFIED_CLIENT_VERSION__';
 
@@ -18,25 +17,77 @@ export async function adapterJSON(name,root=ROOT){
  if(path.dirname(file)!==base)throw new Error('Adapter escapes its package');
  const bytes=await readFile(file);if(bytes.length>256*1024)throw new Error('Adapter data exceeds its limit');return JSON.parse(bytes.toString('utf8'));
 }
-export async function adapterVersions(root=ROOT){
- const registry=await adapterJSON('versions.json',root);
- if(!object(registry)||Object.keys(registry).some(k=>!['schemaVersion','profiles'].includes(k))||registry.schemaVersion!==1||!object(registry.profiles))throw new Error('Invalid adapter registry');
- const entries=Object.entries(registry.profiles);
- if(!entries.length||entries.length>16||entries.some(([version,profile])=>!VERSION.test(version)||version.length>50||typeof profile!=='string'||!/^\d+(?:\.\d+){1,3}$/.test(profile)||profile.length>50||version!==profile&&!version.startsWith(profile+'.')))throw new Error('Invalid adapter registry');
- return {...registry.profiles};
+// Store package versions contain four unsigned 16-bit components.
+export function selectProfileVersion(version, versions, minimumVersion) {
+ const valid = typeof version === 'string' && /^(?:0|[1-9]\d{0,4})(?:\.(?:0|[1-9]\d{0,4})){3}$/.test(version);
+ if (!valid || version.split('.').some(part => Number(part) > 65535)) return null;
+ if (versions.includes(version)) return version;
+ if (!minimumVersion || !versions.includes(minimumVersion)) return null;
+ const parts = version.split('.').map(Number);
+ const minimum = minimumVersion.split('.').map(Number);
+ for (let index = 0; index < parts.length; index++) {
+  if (parts[index] !== minimum[index]) return parts[index] > minimum[index] ? minimumVersion : null;
+ }
+ return minimumVersion;
 }
-export async function registeredProfile(version,root=ROOT){
- const profiles=await adapterVersions(root);
- if(typeof version!=='string'||!Object.hasOwn(profiles,version))throw new Error('Unsupported client version: '+String(version));return profiles[version];
+
+// Bind a fresh configuration to the actual client while retaining its source profile.
+// Exact matches retain their original shape and saved inventory fingerprints.
+export function bindProfile(config, version) {
+ return config.version === version ? config : {...config, profileVersion:config.version, version};
 }
-export async function readAdapter(version,root=ROOT){
- const profile=await registeredProfile(version,root),adapter=await adapterJSON('codex-'+profile+'.json',root);
- if(!object(adapter)||adapter.version!==version||typeof adapter.gate!=='string'||!object(adapter.regions))throw new Error('Adapter/client version mismatch');return adapter;
+
+export async function adapterRegistry(root=ROOT) {
+ const registry = await adapterJSON('versions.json',root);
+ if (!object(registry) || !object(registry.profiles)) throw new Error('Invalid adapter registry');
+ const ranged = registry.schemaVersion === 2;
+ const keys = ranged ? ['schemaVersion','profiles','minimumVersion'] : ['schemaVersion','profiles'];
+ if ((!ranged && registry.schemaVersion !== 1) || Object.keys(registry).some(k=>!keys.includes(k))) throw new Error('Invalid adapter registry');
+ const versions = Object.keys(registry.profiles);
+ if (!versions.length || versions.length > 16) throw new Error('Invalid adapter registry');
+ for (const [version,profile] of Object.entries(registry.profiles)) {
+  if (!selectProfileVersion(version,versions) || typeof profile !== 'string' || !/^\d+(?:\.\d+){1,3}$/.test(profile) || (profile !== version && !version.startsWith(profile+'.'))) throw new Error('Invalid adapter registry');
+ }
+ if (ranged && !versions.includes(registry.minimumVersion)) throw new Error('Invalid minimum client version');
+ return registry;
 }
-// The host binds only a version from its verified Store session. No code comes from a Skin.
-export function bindPayloadVersion(payload,metadata,version){
- if(!object(metadata)||metadata.payloadFormat!==2||!Array.isArray(metadata.clientVersions)||!metadata.clientVersions.length||metadata.clientVersions.length>16||new Set(metadata.clientVersions).size!==metadata.clientVersions.length||metadata.clientVersions.some(v=>typeof v!=='string'||v.length>50||!VERSION.test(v)))throw new Error('Invalid versioned payload metadata');
- if(typeof version!=='string'||version.length>50||!VERSION.test(version)||!metadata.clientVersions.includes(version))throw new Error('Unsupported client version: '+String(version));
- const token=JSON.stringify(CLIENT_VERSION_TOKEN);if(typeof payload!=='string'||payload.split(token).length!==2)throw new Error('Invalid versioned payload binding');
+export async function adapterVersions(root=ROOT) {
+ return (await adapterRegistry(root)).profiles;
+}
+export async function resolveProfile(version,root=ROOT) {
+ const {profiles,minimumVersion} = await adapterRegistry(root);
+ const sourceVersion = selectProfileVersion(version,Object.keys(profiles),minimumVersion);
+ if (!sourceVersion) throw new Error('Unsupported client version: '+String(version));
+ return {sourceVersion, profile:profiles[sourceVersion]};
+}
+export async function registeredProfile(version,root=ROOT) {
+ return (await resolveProfile(version,root)).profile;
+}
+export async function readProfileData(kind,version,root=ROOT) {
+ const {sourceVersion,profile} = await resolveProfile(version,root);
+ const config = await adapterJSON(kind+'-'+profile+'.json',root);
+ if (!object(config) || config.version !== sourceVersion) throw new Error('Adapter/client version mismatch');
+ return bindProfile(config,version);
+}
+export async function readAdapter(version,root=ROOT) {
+ const adapter = await readProfileData('codex',version,root);
+ if (typeof adapter.gate !== 'string' || !object(adapter.regions)) throw new Error('Adapter/client version mismatch');
+ return adapter;
+}
+export function payloadProfileVersion(metadata,version) {
+ if (!object(metadata) || ![2,3].includes(metadata.payloadFormat)) throw new Error('Invalid versioned payload metadata');
+ const versions = metadata.clientVersions;
+ if (!Array.isArray(versions) || !versions.length || versions.length > 16 || new Set(versions).size !== versions.length || versions.some(v=>!selectProfileVersion(v,versions))) throw new Error('Invalid versioned payload metadata');
+ const ranged = metadata.payloadFormat === 3;
+ if (ranged ? !versions.includes(metadata.minimumVersion) : metadata.minimumVersion !== undefined) throw new Error('Invalid versioned payload metadata');
+ const selected = selectProfileVersion(version,versions,metadata.minimumVersion);
+ if (!selected) throw new Error('Unsupported client version: '+String(version));
+ return selected;
+}
+// Only the host supplies the verified Store version. Renderer selection uses the bundled policy.
+export function bindPayloadVersion(payload,metadata,version) {
+ payloadProfileVersion(metadata,version);
+ const token = JSON.stringify(CLIENT_VERSION_TOKEN);
+ if (typeof payload !== 'string' || payload.split(token).length !== 2) throw new Error('Invalid versioned payload binding');
  return payload.replace(token,JSON.stringify(version));
 }

@@ -56,6 +56,7 @@ export const PROBE=`(()=>({
  main:!!document.querySelector('[data-app-shell-main-surface],main.main-surface'),
  ready:!!window.__codexAppearanceV1?.style,
  revision:window.__codexAppearanceRevision??null,
+ profileVersion:window.__codexAppearanceV1?.adapter?.profileVersion??window.__codexAppearanceV1?.adapter?.version??null,
  adapterVersion:window.__codexAppearanceV1?.adapter?.version??null,
  counts:window.__codexAppearanceV1?.counts??null
 }))()`;

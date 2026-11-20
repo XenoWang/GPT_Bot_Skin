@@ -158,7 +158,8 @@ class StandalonePackages(unittest.TestCase):
         # Reproducibility verifies that no assets outside the package are needed.
         self.assertEqual((output / 'cdp-payload.js').read_bytes(), (package / 'runtime/dist/cdp-payload.js').read_bytes())
         metadata = json.loads((output / 'cdp-payload.json').read_text(encoding='utf-8'))
-        self.assertEqual(metadata['payloadFormat'], 2)
+        self.assertEqual(metadata['payloadFormat'], 3)
+        self.assertEqual(metadata['minimumVersion'], '26.1111.2228.0')
         self.assertEqual(metadata['clientVersions'], ['26.1103.4239.0', '26.1111.2228.0'])
         self.assertEqual(metadata, json.loads((package / 'runtime/dist/cdp-payload.json').read_text(encoding='utf-8')))
         for entry in ['Start-Skin.py', 'Build-Zip.py']:

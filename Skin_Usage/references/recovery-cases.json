@@ -89,13 +89,13 @@
         "zh-CN": {
           "title": "客户端版本与适配不匹配",
           "symptom": "客户端更新后旧助手仍存在，不代表旧配置适用于新界面。",
-          "action": "读取精确版本注册表并保持原版支持。未知版本停止注入，先单独适配，不按近似版本猜测。",
+          "action": "核对实际客户端、所选配置和兼容下限。下限起复用基线，出现界面差异时为该版本添加精确配置。",
           "verify": "检查官方会话版本、选中的适配和实际界面一致；旧盘点不能改版本号后复用。"
         },
         "en": {
           "title": "Client/profile version mismatch",
           "symptom": "A surviving helper after an app update does not establish profile compatibility.",
-          "action": "Use the exact version registry and retain existing profiles. Unknown versions stop injection until separately adapted.",
+          "action": "Check the actual client, selected profile and minimum version. Add an exact profile for a release whose surfaces differ from the baseline.",
           "verify": "Verify official session, chosen profile and actual surfaces. Do not relabel old inventory as new-version evidence."
         }
       }

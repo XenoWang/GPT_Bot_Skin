@@ -21,7 +21,7 @@ async function fixture(t){
  return root;
 }
 
-test('exact client versions select separate rendering and authoring profiles without nearest-version fallback',async()=>{
+test('historical exact profiles retain their render and authoring bindings',async()=>{
  assert.deepEqual(await adapterVersions(),{[OLD]:'26.1103',[CURRENT]:'26.1111'});
  for(const [version,profile]of [[OLD,'26.1103'],[CURRENT,'26.1111']]){
   assert.equal(await registeredProfile(version),profile);assert.equal((await readAdapter(version)).version,version);
@@ -29,7 +29,7 @@ test('exact client versions select separate rendering and authoring profiles wit
   assert.ok(config.controls.protectedStates.includes('settings-passwords'));assert.ok(config.plan.manualStates.some(s=>s.id==='questions'));
   assert.equal(clientVersionFromState({packageFullName:'OpenAI.Codex_'+version+'_x64__2p2nqsd0c76g0'}),version);
  }
- for(const version of [undefined,'26.1111','26.1111.9999.0','26.1103.4239.1','__proto__'])await assert.rejects(registeredProfile(version),/Unsupported client version/);
+ for(const version of [undefined,'26.1111','26.1111.2227.65535','26.1103.4239.1','26.1111.99999.0','__proto__'])await assert.rejects(registeredProfile(version),/Unsupported client version/);
  for(const state of [{},{packageFullName:'Other.Codex_'+CURRENT+'_x64'},{packageFullName:'OpenAI.Codex_26.1111_x64'}])assert.throws(()=>clientVersionFromState(state),/Unsupported/);
 });
 
@@ -66,14 +66,20 @@ export class Appearance {
  async start(){window.starts=(window.starts??0)+1;} renderList(){} destroy(){window.destroys=(window.destroys??0)+1;}
 }
 export async function boot(){}\n`);
+ const exactBuild=await payloadSource(root);
+ assert.throws(()=>bindPayloadVersion(exactBuild.text,exactBuild,'26.1111.9265.0'),/Unsupported client version/);
+ const patch='26.1111.9266.0';
+ await save(path.join(root,'adapters/versions.json'),{schemaVersion:2,minimumVersion:CURRENT,profiles:{[OLD]:'26.1103',[CURRENT]:'26.1111',[patch]:patch}});
+ await save(path.join(root,'adapters','codex-'+patch+'.json'),{version:patch,gate:'[data-shell]',regions:{chat:['.patch']},marker:'patch-only'});
  const built=await payloadSource(root),makeContext=()=>({structuredClone,location:{protocol:'app:',hostname:'-',pathname:'/index.html'},document:{querySelector:()=>({})},window:{}});
- for(const [version,marker]of [[OLD,'legacy-layout'],[CURRENT,'current-layout']]){
+ for(const [version,marker,source]of [[OLD,'legacy-layout',OLD],[CURRENT,'current-layout',CURRENT],['26.1111.9265.0','current-layout',CURRENT],[patch,'patch-only',patch],['26.1111.9266.1','current-layout',CURRENT],['27.0.0.0','current-layout',CURRENT]]){
   const context=makeContext(),result=await new vm.Script(bindPayloadVersion(built.text,built,version)).runInNewContext(context,{timeout:3000});
-  assert.equal(result.adapterVersion,version);assert.equal(context.window.selected.marker,marker);assert.equal(context.window.starts,1);
+  assert.equal(result.adapterVersion,version);assert.equal(context.window.selected.marker,marker);assert.equal(context.window.__codexAppearanceV1.adapter.profileVersion??version,source);assert.equal(context.window.starts,1);
  }
  const upgrade=makeContext();upgrade.window.__codexAppearanceRevision=built.revision;upgrade.window.__codexAppearanceV1={style:{},adapter:{version:OLD},destroy(){upgrade.window.destroys=1;}};
  const upgraded=await new vm.Script(bindPayloadVersion(built.text,built,CURRENT)).runInNewContext(upgrade,{timeout:3000});assert.equal(upgraded.adapterVersion,CURRENT);assert.equal(upgrade.window.destroys,1);
  const protectedContext=makeContext();let touched=0;protectedContext.document={querySelector(){touched++;throw Error('Unbound versions cannot inspect the shell');}};protectedContext.window.__codexAppearanceV1={destroy(){touched++;}};
+ assert.equal((await new vm.Script(built.text.replace(JSON.stringify(CLIENT_VERSION_TOKEN),JSON.stringify('26.1111.999.0'))).runInNewContext(protectedContext)).blocked,'client-version');assert.equal(touched,0);
  assert.equal((await new vm.Script(built.text).runInNewContext(protectedContext)).blocked,'client-version');assert.equal(touched,0);
  protectedContext.location.protocol='https:';assert.equal((await new vm.Script(bindPayloadVersion(built.text,built,CURRENT)).runInNewContext(protectedContext)).blocked,'origin');assert.equal(touched,0);
 });
@@ -81,10 +87,13 @@ export async function boot(){}\n`);
 test('unknown versions and cross-version captures close connections without navigation or saving stale evidence',async()=>{
  let closed=0;const forbidden=()=>assert.fail('No navigation, capture, window change or evidence write is allowed');
  const client=version=>({clientVersion:version,targetId:'fixture',page:{evaluate:forbidden},close(){closed++;}});
- await assert.rejects(inventory({statePath:'fixture',onProgress:forbidden},{connect:async()=>client('99.1.2.3'),windows:forbidden}),/Unsupported client version/);assert.equal(closed,1);
+ await assert.rejects(inventory({statePath:'fixture',onProgress:forbidden},{connect:async()=>client('25.65535.65535.65535'),windows:forbidden}),/Unsupported client version/);assert.equal(closed,1);
  const previous={clientVersion:OLD,binding:'old-binding',measurement:{maximized:true},coverage:{states:[{id:'settings-general',status:'not-observed',regions:['settings']}]}};
  await assert.rejects(captureSettings({statePath:'fixture',previous,onProgress:forbidden},{connect:async()=>client(CURRENT),capture:forbidden}),/Re-inventory/);assert.equal(closed,2);
  await assert.rejects(inventory({statePath:'fixture',previous,manualState:'menus',onProgress:forbidden},{connect:async()=>client(CURRENT),windows:forbidden}),/same inventory session/);assert.equal(closed,3);
+ const currentInventory={...previous,clientVersion:'26.1111.9265.0'};
+ await assert.rejects(captureSettings({statePath:'fixture',previous:currentInventory,onProgress:forbidden},{connect:async()=>client('26.1111.9266.0'),capture:forbidden}),/Re-inventory/);
+ assert.equal(closed,4);
 });
 
 function refreshFixture(){
@@ -152,4 +161,28 @@ test('metadata-only refresh keeps observations and the current profile maps the 
  const {report,changedRegions,invalidatedStates}=await f.run();assert.deepEqual(changedRegions,[]);assert.deepEqual(invalidatedStates,[]);assert.deepEqual(report.coverage,f.previous.coverage);assert.deepEqual(report.samples,f.previous.samples);
  const current=await readAdapter(CURRENT),legacy=await readAdapter(OLD),selector="[data-app-shell-main-surface] :is([data-markdown-text-style],[data-markdown-text-tone]) span[class~='InlineCode-Cddi3Y']";
  assert.ok(current.regions.codeBlocks.includes(selector));assert.ok(!legacy.regions.codeBlocks.includes(selector));
+});
+
+test('both packaged registries use the inclusive floor and numeric component order',async()=>{
+ const usage=await import('../../../Skin_Usage/runtime/scripts/adapter-registry.mjs');
+ const newer=['26.1111.2228.1','26.1111.9265.0','26.1111.9999.0','26.1111.10000.0','26.1112.0.0','27.0.0.0','99.1.2.3'];
+ for(const read of [readAdapter,usage.readAdapter]){
+  for(const actual of newer){
+   const adapter=await read(actual);
+   assert.equal(adapter.version,actual);
+   assert.equal(adapter.profileVersion,CURRENT);
+  }
+  for(const denied of ['26.1111.999.9','26.1111.2227.65535','26.111.65535.0','26.1103.4239.1','27.0.0.x']){
+   await assert.rejects(read(denied),/Unsupported client version/);
+  }
+ }
+ for(const actual of ['26.1111.9265.0','27.0.0.0']){
+  const {adapter,plan,controls}=await authoringConfiguration(actual);
+  for(const resolved of [adapter,plan,controls]){
+   assert.equal(resolved.version,actual);
+   assert.equal(resolved.profileVersion,CURRENT);
+  }
+  assert.ok(controls.protectedStates.includes('settings-passwords'));
+  assert.ok(plan.manualStates.some(state=>state.id==='questions'));
+ }
 });

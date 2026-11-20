@@ -22,5 +22,5 @@ export function catalogFromReport(report,labels={}){
   return {key,label:{en:labels.en?.regions?.[key]??key,zh:labels['zh-CN']?.regions?.[key]??key},status:visible?'observed':matched?'loaded-hidden':'not-observed',enabledByDefault:false,...regionCapabilities(key),requiresAdapterReview:reasons.length>0,reasons,observations:observations.map(r=>({sample:r.sample,visible:r.visible,rects:(r.samples??[]).filter(s=>s.visible).map(s=>s.rect)}))};
  });
  const candidates=report.samples.flatMap((s,sample)=>(s.candidates??[]).filter(c=>!c.mappedRegions?.length).map(c=>({sample,role:c.role,tag:c.tag,path:c.path,rect:c.rect,visible:c.visible,status:'needs-classification'})));
- return {schemaVersion:2,clientVersion:report.clientVersion,adapterVersion:report.adapterVersion,readOnly:true,coverageLabels:report.coverageLabels,coverage:report.coverage??null,regions,candidates,instructions:{zh:'已观察不代表视觉验收。缺口不能标记为通过。',en:'Observed is not visual acceptance. Gaps are not passes.'}};
+ return {schemaVersion:2,clientVersion:report.clientVersion,adapterVersion:report.adapterVersion,profileVersion:report.profileVersion??report.adapterVersion,readOnly:true,coverageLabels:report.coverageLabels,coverage:report.coverage??null,regions,candidates,instructions:{zh:'已观察不代表视觉验收。缺口不能标记为通过。',en:'Observed is not visual acceptance. Gaps are not passes.'}};
 }

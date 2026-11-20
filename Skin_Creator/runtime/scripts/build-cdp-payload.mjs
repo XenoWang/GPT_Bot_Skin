@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {readPack,readTranslations} from './build.mjs';
 import {officialDocument} from './cdp-transport.mjs';
-import {adapterVersions,readAdapter,CLIENT_VERSION_TOKEN} from './adapter-registry.mjs';
+import {adapterRegistry,readAdapter,selectProfileVersion,bindProfile,CLIENT_VERSION_TOKEN} from './adapter-registry.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export async function bundledPacks(root=ROOT){
  let ids=['kurumi-twilight','neutral-dark'];
@@ -22,13 +22,14 @@ export async function payloadSource(root=ROOT){
  runtime=runtime.slice(start.length,runtime.indexOf(boundary)).replace("const BASE=new URL('.',import.meta.url);",'');
  core=core.replace(/^export /gm,'');runtime=runtime.replace(/^export /gm,'');
  if(/\bimport\s|import\.meta|^export /m.test(core+runtime))throw new Error('Unexpected module dependency');
- const versions=Object.keys(await adapterVersions(root));
+ const {profiles,minimumVersion}=await adapterRegistry(root);
+ const versions=Object.keys(profiles);
  const adapters=Object.fromEntries(await Promise.all(versions.map(async version=>[version,await readAdapter(version,root)])));
  const translations=await readTranslations(path.join(root,'locales'));
  const packs=await bundledPacks(root);
- const revision=createHash('sha256').update(payloadSource.toString()+officialDocument.toString()+core+runtime+JSON.stringify({adapters,packs,translations})).digest('hex');
- const text=`(async(clientVersion)=>{\n'use strict';\nif(!(${officialDocument.toString()})(location.protocol,location.hostname,location.pathname))return {blocked:'origin'};\nconst adapters=${JSON.stringify(adapters)};\nif(!Object.hasOwn(adapters,clientVersion))return {blocked:'client-version'};\nconst adapter=adapters[clientVersion];\nif(!document.querySelector('[data-app-shell-frame],main.main-surface')||!document.querySelector('aside.app-shell-left-panel,[data-sidebar-navigation-root]'))return {blocked:'shell'};\nif(window.__codexAppearanceRevision===${JSON.stringify(revision)}&&window.__codexAppearanceV1?.style&&window.__codexAppearanceV1.adapter?.version===clientVersion)return {already:true};\nwindow.__codexAppearanceV1?.destroy?.();\n${core}\n${runtime}\nconst packs=${JSON.stringify(packs)};\nconst app=new Appearance(adapter,validatePack(packs[0]),${JSON.stringify(translations)});\nwindow[KEY]=app;\ntry{for(const p of packs.slice(1)){app.packs.set(p.manifest.id,validatePack(p));}await app.start();app.renderList();window.__codexAppearanceRevision=${JSON.stringify(revision)};return {installed:true,counts:app.counts,adapterVersion:adapter.version};}catch(e){app.destroy();throw e;}\n})(${JSON.stringify(CLIENT_VERSION_TOKEN)})`;
- return {text,revision,clientVersions:versions,payloadFormat:2};
+ const revision=createHash('sha256').update(payloadSource.toString()+officialDocument.toString()+selectProfileVersion.toString()+bindProfile.toString()+core+runtime+JSON.stringify({adapters,minimumVersion,packs,translations})).digest('hex');
+ const text=`(async(clientVersion)=>{\n'use strict';\nif(!(${officialDocument.toString()})(location.protocol,location.hostname,location.pathname))return {blocked:'origin'};\nconst adapters=${JSON.stringify(adapters)};\nconst sourceVersion=(${selectProfileVersion.toString()})(clientVersion,Object.keys(adapters),${JSON.stringify(minimumVersion) ?? 'undefined'});\nif(!sourceVersion)return {blocked:'client-version'};\nconst adapter=(${bindProfile.toString()})(adapters[sourceVersion],clientVersion);\nif(!document.querySelector('[data-app-shell-frame],main.main-surface')||!document.querySelector('aside.app-shell-left-panel,[data-sidebar-navigation-root]'))return {blocked:'shell'};\nif(window.__codexAppearanceRevision===${JSON.stringify(revision)}&&window.__codexAppearanceV1?.style&&window.__codexAppearanceV1.adapter?.version===clientVersion)return {already:true};\nwindow.__codexAppearanceV1?.destroy?.();\n${core}\n${runtime}\nconst packs=${JSON.stringify(packs)};\nconst app=new Appearance(adapter,validatePack(packs[0]),${JSON.stringify(translations)});\nwindow[KEY]=app;\ntry{for(const p of packs.slice(1)){app.packs.set(p.manifest.id,validatePack(p));}await app.start();app.renderList();window.__codexAppearanceRevision=${JSON.stringify(revision)};return {installed:true,counts:app.counts,adapterVersion:adapter.version};}catch(e){app.destroy();throw e;}\n})(${JSON.stringify(CLIENT_VERSION_TOKEN)})`;
+ return {text,revision,clientVersions:versions,minimumVersion,payloadFormat:minimumVersion?3:2};
 }
-export async function buildPayload(output=path.join(ROOT,'dist'),root=ROOT){const p=await payloadSource(root);await mkdir(output,{recursive:true});await writeFile(path.join(output,'cdp-payload.js'),p.text);await writeFile(path.join(output,'cdp-payload.json'),JSON.stringify({revision:p.revision,bytes:Buffer.byteLength(p.text),payloadFormat:p.payloadFormat,clientVersions:p.clientVersions},null,2));return p.revision;}
+export async function buildPayload(output=path.join(ROOT,'dist'),root=ROOT){const p=await payloadSource(root);await mkdir(output,{recursive:true});await writeFile(path.join(output,'cdp-payload.js'),p.text);await writeFile(path.join(output,'cdp-payload.json'),JSON.stringify({revision:p.revision,bytes:Buffer.byteLength(p.text),payloadFormat:p.payloadFormat,clientVersions:p.clientVersions,minimumVersion:p.minimumVersion},null,2));return p.revision;}
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))console.log(await buildPayload());

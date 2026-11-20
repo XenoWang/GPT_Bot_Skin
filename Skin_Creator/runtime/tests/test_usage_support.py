@@ -70,6 +70,24 @@ class UsageSupport(unittest.TestCase):
         self.assertEqual(before, {p.relative_to(self.root): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
         self.assertFalse((self.root / '.local').exists())
 
+    def test_range_and_actual_client_are_reported_separately(self):
+        baseline = '26.1111.2228.0'
+        actual = '26.1111.9265.0'
+        registry = {'schemaVersion': 2, 'minimumVersion': baseline, 'profiles': {baseline: '26.1111'}}
+        self.write('runtime/adapters/versions.json', registry)
+        self.write('runtime/fixture-state/status.json', {'state': 'active', 'clientVersion': actual,
+                   'profileVersion': baseline, 'versionMatch': 'range'})
+        summary = support.status(self.root, now=self.now)
+        self.assertEqual(summary['minimumVersion'], baseline)
+        self.assertEqual(summary['supportedClients'], [baseline])
+        snapshot = summary['routes'][0]['snapshot']
+        self.assertEqual((snapshot['clientVersion'], snapshot['profileVersion'], snapshot['versionMatch']),
+                         (actual, baseline, 'range'))
+        self.assertFalse(snapshot['liveVerified'])
+        self.write('runtime/adapters/versions.json', {**registry, 'minimumVersion': actual})
+        with self.assertRaises(support.UsageError):
+            support.status(self.root, now=self.now)
+
     def test_snapshot_age_and_payload_match_never_imply_live_verification(self):
         result = support.status(self.root, now=self.now)
         snap = result['routes'][0]['snapshot']

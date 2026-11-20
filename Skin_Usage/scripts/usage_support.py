@@ -55,7 +55,7 @@ def snapshot(file, expected_revision, now):
         pass
     result = {'available': True, 'liveVerified': False, 'ageSeconds': age,
               'fresh': age is not None and 0 <= age <= 60}
-    for key in ('state', 'clientVersion'):
+    for key in ('state', 'clientVersion', 'profileVersion', 'versionMatch'):
         item = value.get(key)
         if isinstance(item, str) and len(item) <= 100:
             result[key] = item
@@ -73,8 +73,14 @@ def status(root, state=None, full=False, now=None):
         raise UsageError('metadata_invalid', 'Expected the bundled Usage runtime')
     registry = read_json(runtime / 'adapters/versions.json')
     profiles = registry.get('profiles') if isinstance(registry, dict) else None
-    if not isinstance(registry, dict) or type(registry.get('schemaVersion')) is not int or registry['schemaVersion'] != 1 or not isinstance(profiles, dict) or not 1 <= len(profiles) <= 64 or any(not re.fullmatch(r'\d+(?:\.\d+){3}', k) for k in profiles):
+    if not isinstance(registry, dict) or type(registry.get('schemaVersion')) is not int or registry['schemaVersion'] not in (1, 2) or not isinstance(profiles, dict) or not 1 <= len(profiles) <= 64 or any(not re.fullmatch(r'\d+(?:\.\d+){3}', k) for k in profiles):
         raise UsageError('metadata_invalid', 'Invalid exact-version registry')
+    minimum = registry.get('minimumVersion')
+    if registry['schemaVersion'] == 2:
+        if not isinstance(minimum, str) or minimum not in profiles:
+            raise UsageError('metadata_invalid', 'Invalid minimum client version')
+    elif 'minimumVersion' in registry:
+        raise UsageError('metadata_invalid', 'Unexpected minimum client version')
     catalog = read_json(runtime / 'theme-catalog.json', optional=True)
     if catalog is not None and (not isinstance(catalog, dict) or type(catalog.get('schemaVersion')) is not int or catalog['schemaVersion'] != 1):
         raise UsageError('metadata_invalid', 'Invalid theme catalog version')
@@ -126,7 +132,7 @@ def status(root, state=None, full=False, now=None):
             item['configurationFile'] = str(file)
         routes.append(item)
     result = {'package': 'Skin_Usage', 'themes': themes if full else ids,
-              'supportedClients': list(profiles), 'routes': routes,
+              'supportedClients': list(profiles), 'minimumVersion': minimum, 'routes': routes,
               'scope': 'disk-metadata-only', 'liveVerified': False}
     if state:
         file = checked_path(state)

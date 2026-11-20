@@ -4,7 +4,7 @@ import path from 'node:path';
 import {managedPage} from './managed-page.mjs';
 import {windowController} from './window-control.mjs';
 import {captureRegions,makeCatalog} from './inspect-ui-regions.mjs';
-import {registeredProfile,readAdapter,adapterJSON} from './adapter-registry.mjs';
+import {readProfileData,readAdapter} from './adapter-registry.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const settle=()=>new Promise(resolve=>setTimeout(resolve,250));
 const bindingFor=(client,adapter,plan)=>createHash('sha256').update(JSON.stringify([client.clientVersion,adapter,plan,client.targetId])).digest('hex');
@@ -135,16 +135,16 @@ export function refreshNavigationEvidence(report,controls){
  return report;
 }
 export async function authoringControls(version){
- const profile=await registeredProfile(version,ROOT),value=await adapterJSON('authoring-controls-'+profile+'.json',ROOT);
+ const value=await readProfileData('authoring-controls',version,ROOT);
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid authoring controls configuration');
  if(value.semanticGraphics!==undefined&&(!Array.isArray(value.semanticGraphics)||value.semanticGraphics.length>16||value.semanticGraphics.some(selector=>typeof selector!=='string'||!selector.trim()||selector.length>512)))throw new Error('Invalid authoring controls configuration');
  if(!value||value.version!==version||!Array.isArray(value.sidebarToggleLabels)||!Array.isArray(value.protectedStates)||value.externalStates!==undefined&&!Array.isArray(value.externalStates)||value.protectedShellStates!==undefined&&(!Array.isArray(value.protectedShellStates)||value.protectedShellStates.some(id=>!value.protectedStates.includes(id)||value.externalStates?.includes(id)||navigationRoute(id,value).kind!=='settings')))throw new Error('Invalid authoring controls configuration');
  return value;
 }
 export async function authoringConfiguration(version){
- const profile=await registeredProfile(version,ROOT);
- const [adapter,plan,controls]=await Promise.all([readAdapter(version,ROOT),adapterJSON('authoring-'+profile+'.json',ROOT),authoringControls(version)]);
+ const [adapter,plan,controls]=await Promise.all([readAdapter(version,ROOT),readProfileData('authoring',version,ROOT),authoringControls(version)]);
  if(plan?.version!==version||!Array.isArray(plan.destinations)||!Array.isArray(plan.settings)||!Array.isArray(plan.manualStates))throw new Error('Authoring plan/client version mismatch');
+ if (plan.profileVersion!==adapter.profileVersion || controls.profileVersion!==adapter.profileVersion) throw new Error('Inconsistent authoring profile selection');
  return {adapter,plan,controls};
 }
 export async function refreshAdapterMapping({statePath,targetId,previous,previousAdapter,onProgress=async()=>{}},{connect=managedPage,configuration=authoringConfiguration}={}){
@@ -231,7 +231,7 @@ export async function inventory({statePath,targetId,previous=null,onProgress=asy
  const {adapter,plan,controls}=configuration;
  let windowControl,navigationSaved=false,navigationMoved=false;
  const binding=bindingFor(client,adapter,plan);
- let report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion:client.clientVersion,adapterVersion:adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[],samples:[],binding,coverage:{states:[],restored:null},targetLimitReached:false};
+ let report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion:client.clientVersion,adapterVersion:adapter.version,profileVersion:adapter.profileVersion??adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[],samples:[],binding,coverage:{states:[],restored:null},targetLimitReached:false};
  const capture=async(label)=>{const sample=await page.evaluate('('+captureRegions.toString()+')('+JSON.stringify(adapter)+')');sample.label=label;report.samples.push(sample);report.coverageLabels.push(label);return sample;};
  try{
   if(client.clientVersion!==plan.version||controls.version!==plan.version)throw new Error('Unsupported client version: inventory/adaptation is required before automated navigation');

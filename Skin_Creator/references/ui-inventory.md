@@ -36,3 +36,5 @@ Use the generated `.regions.json` to present a small numbered diagram based on t
 Backward compatibility is not supported by default. Adapt and verify older clients separately without weakening origin/owner checks. Check wrapper transparency, scrolling occlusion, restoration and interaction, and follow the workspace's test-approval process.
 
 Reports are local data in ignored `work/` directories. They exclude content text and input values but should still not be published raw. Existing report files are not overwritten; choose a new output name for another capture.
+
+Creator and Usage share an inclusive minimum of `26.1111.2228.0`. Exact profiles override the baseline for one release. Rendering, the inventory plan and authoring controls use the same selection. Changing the actual client invalidates previous inventory bindings, even when both versions select the same profile. Observe and confirm surfaces on the current client before export.

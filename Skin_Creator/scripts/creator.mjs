@@ -9,6 +9,7 @@ import {cropPlan,paletteCandidates,hex} from './image-math.mjs';
 import {writeCatalog} from './catalog.mjs';
 import {inventory,captureSettings,authoringControls,refreshNavigationEvidence,refreshAdapterMapping} from '../runtime/scripts/coverage-runner.mjs';
 import {makeCatalog} from '../runtime/scripts/inspect-ui-regions.mjs';
+import {resolveProfile} from '../runtime/scripts/adapter-registry.mjs';
 import {managedPage} from '../runtime/scripts/managed-page.mjs';
 import {installAuthoring} from '../runtime/renderer/authoring.mjs';
 import {auditControlContrast} from '../runtime/scripts/contrast-audit.mjs';
@@ -73,8 +74,9 @@ async function bridge(args,action){
  if(!args.state)throw new Error('--state must identify the verified managed runtime session');
  const c=await managedPage(args.state,args.target);
  try{
-  const version=await c.page.evaluate('window.__codexAppearanceV1?.adapter?.version');
-  if(version!==c.clientVersion)throw new Error('Runtime/client version mismatch');
+  const {sourceVersion}=await resolveProfile(c.clientVersion);
+  const live=await c.page.evaluate('(()=>{const a=window.__codexAppearanceV1?.adapter;return {version:a?.version,profileVersion:a?.profileVersion??a?.version}})()');
+  if(live.version!==c.clientVersion||live.profileVersion!==sourceVersion)throw new Error('Runtime/client version mismatch');
   if(!await c.page.evaluate('!!(window.__codexAppearanceV1?.features?.sharedScene && window.__codexAppearanceV1?.validateCreatorPack)'))throw new Error('Update the managed Skin runtime before previewing');
   // Reuse the runtime validator; no arbitrary expression comes from a pack or session file.
   await c.page.evaluate('('+installAuthoring.toString()+')(window.__codexAppearanceV1,window.__codexAppearanceV1.validateCreatorPack.bind(window.__codexAppearanceV1))');

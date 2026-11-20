@@ -51,7 +51,7 @@ export function makeCatalog(report,labels={}){
 export function mergeReports(reports){
  if(!reports.length||reports.length>64)throw new Error('Expected 1–64 inventory reports');
  const first=reports[0];
- for(const r of reports)if(r.schemaVersion!==1||r.kind!=='codex-ui-inventory'||r.clientVersion!==first.clientVersion||r.adapterVersion!==first.adapterVersion||!Array.isArray(r.samples)||!Array.isArray(r.coverageLabels))throw new Error('Reports must use the same client and adapter versions');
+ for(const r of reports)if(r.schemaVersion!==1||r.kind!=='codex-ui-inventory'||r.clientVersion!==first.clientVersion||r.adapterVersion!==first.adapterVersion||(r.profileVersion??r.adapterVersion)!==(first.profileVersion??first.adapterVersion)||!Array.isArray(r.samples)||!Array.isArray(r.coverageLabels))throw new Error('Reports must use the same client and adapter versions');
  return {...first,createdAt:new Date().toISOString(),coverageLabels:[...new Set(reports.flatMap(r=>r.coverageLabels))],samples:reports.flatMap(r=>r.samples),targetLimitReached:reports.some(r=>r.targetLimitReached),unconfirmedRegions:[...new Set(reports.flatMap(r=>r.unconfirmedRegions??[]))],coverage:null};
 }
 
@@ -77,7 +77,7 @@ export async function run(args=process.argv.slice(2)){
   for(const t of targets.slice(0,8)){
    const c=await new Connection(t.webSocketDebuggerUrl).open();try{samples.push(await c.evaluate('('+captureRegions.toString()+')('+JSON.stringify(adapter)+')'));}finally{c.close();}
   }
-  report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion,adapterVersion:adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[label],samples,targetLimitReached:targets.length>8};
+  report={schemaVersion:1,kind:'codex-ui-inventory',createdAt:new Date().toISOString(),clientVersion,adapterVersion:adapter.version,profileVersion:adapter.profileVersion??adapter.version,unconfirmedRegions:adapter.unconfirmedRegions??[],coverageLabels:[label],samples,targetLimitReached:targets.length>8};
  }
  const catalog=makeCatalog(report,labels);await mkdir(path.dirname(output),{recursive:true});
  // Exclusive creation preserves previous captures and private evidence.

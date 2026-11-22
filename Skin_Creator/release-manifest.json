@@ -31,13 +31,13 @@
     "runtime/adapters/authoring-controls-26.1103.json": "8e40690b58662b84d773e49df72967b86bcb7d9cfcf05d689b6b22331ca5fc4c",
     "runtime/adapters/codex-26.1103.json": "03f87a14f43356908798a2d5df66169c17f84d44fba4c32291024eef3e3d8cf3",
     "runtime/assets/codex-launcher.ico": "7c4bd139c305ac4de332c12cf4a3b10184715990afcf48b49f2478fbd1b0e19e",
-    "runtime/dist/cdp-payload.js": "fdc8f4a11c49a57b66879d71a5aa847d5856da2a8d5ad36c869ed50f6e599214",
-    "runtime/dist/cdp-payload.json": "c89094fdd2221075b765fa7efd4aa9cccc6a721b91aedc2ceae3275c1aa5bf63",
+    "runtime/dist/cdp-payload.js": "787dfb23a3074ee035c1708bc4eabf91d1f87198a1f40ac8711c996b7221b8a5",
+    "runtime/dist/cdp-payload.json": "4adbac2ad4396bd7ec165b18d388e88e1f5023559aab13e179800b6347528c97",
     "runtime/locales/en.json": "a1221956d4cb1f15823837ff11c471eda9aba16ae088b4945b9358d9331b8985",
     "runtime/locales/zh-CN.json": "2b2bb5c3cd9ba409387fac84ab1365f797124b0ebc14c41053306bc288bcbba1",
     "runtime/renderer/authoring.mjs": "6b61d606206b6de3cabc40c1c537cb662acca985b564e2488ff18fbac187ec7c",
     "runtime/renderer/core.mjs": "e38bf6e77e3ed6e4b050e7c57d236be0918898bd9c57d0d1c0b6da2debfea397",
-    "runtime/renderer/runtime.mjs": "116f81886922f03de832ae8bc9fa3bef322b6f83c5ef87d3fbf1460e3db05c55",
+    "runtime/renderer/runtime.mjs": "58d8bd484b85d614ca2d697316ba55710654ef4af2c88d335796b78bdc1c2b3f",
     "runtime/runtime-profile.json": "702bc8f8a9767ceed21f3023bb6b8b71d1db79713b40a89d0bf09dfe4e02765f",
     "runtime/scripts/Assert-CdpOwner.ps1": "d580f4b52d9d7cca172d59833f6109b08335292949b6b697925faf7eb7d23070",
     "runtime/scripts/Configure-CodexSkin.ps1": "8f3c9dd07d6290151a512c493db6f4c31d5d698537ba9cc8aeb9967f96d43b59",
@@ -89,6 +89,6 @@
     "runtime/adapters/codex-26.1117.json": "ea529118650de1da6c933b54839f6a4bc2947c7a88e35c4575005dd9cabe8ce5",
     "runtime/adapters/authoring-26.1117.json": "2356f994848d64e4dee934e412edf085f39d2a3f370c60646cfa8dac363ac570",
     "runtime/adapters/authoring-controls-26.1117.json": "a2b3033a316c9a7294af3062c0c9baa99b0919b8c61e164906f47b57d30eed51",
-    "references/layout-26.1117.3838.md": "8718b91f2f90b5efc94c00bbb705561ecc738a9b14f48120493610a2f8505bb3"
+    "references/layout-26.1117.3838.md": "262024c91d4ac75d32c8e36a0f1a9954f1dc91f9ce27862389665bfce12218fc"
   }
 }

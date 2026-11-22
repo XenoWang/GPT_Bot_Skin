@@ -278,7 +278,7 @@ test('new desktop settings paint the section and switch track, not just the sear
   app.active=id;app.pack={manifest:{regions:{dialogs:{enabled:true,style:{surface:fill}},settings:{enabled:true,style:{surface:fill}},tooltips:{enabled:true,style:{surface:fill}}}}};
   app.adapter=await readAdapter('26.1117.3838.0');app.refresh();
   const css=app.style.textContent;
-  assert.ok(css.includes('background-image:linear-gradient(to bottom,'+fill+','),id+' toolbar fade');
+  assert.ok(!css.includes(app.adapter.settingsChrome.sticky+'{--color-surface:'+fill),id+' fixed toolbar has no painted sheet');
   assert.ok(css.includes('--settings-row-padding-inline:clamp(10px,1.25vw,16px)!important'),id+' inner gutter');
   assert.ok(css.includes('border-radius:var(--radius-2xl,16px)!important'),id+' rounded group');
   assert.ok(css.includes('--switch-track-color-checked:'+tracks[id]),id+' checked track');
@@ -356,5 +356,24 @@ test('image composer scopes the model and dictation foregrounds and preserves th
   assert.ok(css.includes(rail+' '+buttons+':not(:disabled'));
   app.adapter=await readAdapter('26.1111.2228.0');app.refresh();
   assert.ok(!app.style.textContent.includes('--composer-layout-surface-background:'+base));
+ }
+});
+
+test('search and filter wrappers and reasoning slider rows remain transparent across desktop profiles',async t=>{
+ const {app}=setup(t);
+ app.pack={manifest:{hover:{surface:'#98123D',surfaceOpacity:1},regions:{settings:{enabled:true,style:{surface:'#30182C'}}}}};
+ for(const version of ['26.1103.4239.0','26.1111.2228.0','26.1117.3838.0']){
+  app.adapter=await readAdapter(version);
+  app.refresh();
+  const rules=app.style.textContent.split('}').map(rule=>rule.split('{'));
+  const clear=rules.filter(([,style])=>style?.includes('background-color:transparent!important')&&style.includes('background-image:none!important')).map(([selector])=>selector);
+  const toolbar=clear.find(s=>s.includes('.sticky.bg-surface:has('));
+  assert.ok(toolbar?.includes('input')&&toolbar.includes('button'),version+' search and filter toolbars');
+  assert.ok(toolbar.includes('::before')&&toolbar.includes('::after'),version+' both outer fades');
+  const row=clear.find(s=>s.startsWith('[role="menu"]')&&s.includes('[data-reasoning-slider]'));
+  assert.ok(row?.includes('[role="menuitem"]:has([role="slider"])'),version+' semantic slider fallback');
+  assert.ok(!row.endsWith(' [role="slider"]'),version+' preserve the native track');
+  const hover=rules.find(([s])=>s.startsWith('[role="menu"]')&&s.includes(':hover:not(:disabled)'));
+  assert.ok(hover?.[0].includes('[data-reasoning-slider]'),version+' generic hover excludes slider');
  }
 });

@@ -158,7 +158,9 @@ export class Appearance {
   const palette=this.bundledSkinIds?.has(this.active)?controlAppearance?.palettes[this.active]:null;
   const imageComposer=this.adapter.imageComposer;
   const imageButtons=imageComposer?imageComposer.rail+' '+imageComposer.buttons:null;
-  const hoverExclusions=palette?[hitOnly,controlAppearance.primary,controlAppearance.settingsLink,this.adapter.settingsChrome?.switch,imageButtons].filter(Boolean).join(','):hitOnly;
+  // The reasoning slider owns its track, ticks, thumb and keyboard focus inside the menu row.
+  const sliderRow='[data-reasoning-slider],[role="menuitem"]:has([role="slider"])';
+  const hoverExclusions=[hitOnly,sliderRow,...(palette?[controlAppearance.primary,controlAppearance.settingsLink,this.adapter.settingsChrome?.switch,imageButtons]:[])].filter(Boolean).join(',');
   const hiddenPanes=this.adapter.workspacePane
    ? [...document.querySelectorAll(this.adapter.workspacePane)].filter(pane=>getComputedStyle(pane).display==='none')
    : [];
@@ -217,7 +219,13 @@ export class Appearance {
   for(const [n,old]of this.oldMarks){const names=desired.get(n);if(!names){if(old===null)n.removeAttribute(MARK);else n.setAttribute(MARK,old);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');this.oldMarks.delete(n);}else{const tokens=new Set((old??'').split(' ').filter(Boolean));for(const name of names)tokens.add(name);n.setAttribute(MARK,[...tokens].join(' '));if(!visualNodes.has(n)){n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}}}
   for(const [n,v]of this.mounted)if(!visualNodes.has(n)){v.ro?.disconnect();v.layer.remove();this.mounted.delete(n);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}
   for(const n of this.transparent)if(!clearNodes.has(n))n.removeAttribute('data-codex-appearance-clear');this.transparent=clearNodes;
-   if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(${hoverExclusions}):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}{${declarations(hover)}}`);}
+   if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(${hoverExclusions}):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}:not(:where(${sliderRow})){${declarations(hover)}}`);}
+  if(hover)css.push(`[role="menu"] :is(${sliderRow}){background-color:transparent!important;background-image:none!important}`);
+  // Clear the sticky search backplate and its scroll fade without changing the field or filters.
+  if(this.pack.manifest.regions.settings?.enabled||this.pack.manifest.regions.chat?.enabled){
+   const searchToolbar=':is([data-settings-panel],[class~="group/settings"]) .sticky.bg-surface:has(input,button,select,[role="tab"],[role="combobox"])';
+   css.push(`${searchToolbar},${searchToolbar}::before,${searchToolbar}::after{background-color:transparent!important;background-image:none!important}`);
+  }
   if(palette&&hover){
    const enabled=':not(:disabled,[aria-disabled="true"],[data-disabled])';
    const primary=controlAppearance.primary+enabled+':hover';
@@ -265,7 +273,6 @@ export class Appearance {
    // The native panel resets section radius, border and inline padding. Restore the actual group, not its children.
    css.push(`${chrome.rowCard}[data-codex-appearance~="settings"]{--settings-row-padding-inline:clamp(10px,1.25vw,16px)!important;border:1px solid ${line}!important;border-radius:var(--radius-2xl,16px)!important;box-sizing:border-box;box-shadow:none!important}`);
    css.push(`${chrome.notice}[data-codex-appearance~="settings"]{background-color:${rgba(surface,settingsStyle.surfaceOpacity??1)}!important;border:1px solid ${line}!important;color:${text}!important}`);
-   css.push(`${chrome.sticky}{--color-surface:${sheet};background-color:${sheet}!important}${chrome.sticky}::after{background-image:linear-gradient(to bottom,${sheet},${rgba(sheet,0)})!important}`);
    // Preserve the title height. The rounded group or the native table already draws this shared edge.
    css.push(`${chrome.framedSectionHeader}{border-bottom-color:transparent!important}`);
    const toggle=chrome.switch+':not(:disabled,[aria-disabled="true"],[data-disabled])';

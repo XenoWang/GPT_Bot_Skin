@@ -5,6 +5,7 @@
     "File"
   ],
   "strings": {
+    "newLayoutSkin": "{name} · New layout ({version})",
     "title": "Skin settings",
     "launcher": "Skin",
     "launcherLabel": "Open Skin settings",

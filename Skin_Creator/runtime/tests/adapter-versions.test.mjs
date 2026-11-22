@@ -22,7 +22,7 @@ async function fixture(t){
 }
 
 test('historical exact profiles retain their render and authoring bindings',async()=>{
- assert.deepEqual(await adapterVersions(),{[OLD]:'26.1103',[CURRENT]:'26.1111'});
+ assert.deepEqual(await adapterVersions(),{[OLD]:'26.1103',[CURRENT]:'26.1111','26.1117.3838.0':'26.1117'});
  for(const [version,profile]of [[OLD,'26.1103'],[CURRENT,'26.1111']]){
   assert.equal(await registeredProfile(version),profile);assert.equal((await readAdapter(version)).version,version);
   const config=await authoringConfiguration(version);assert.equal(config.adapter.version,version);assert.equal(config.plan.version,version);assert.equal(config.controls.version,version);

@@ -160,7 +160,7 @@ class StandalonePackages(unittest.TestCase):
         metadata = json.loads((output / 'cdp-payload.json').read_text(encoding='utf-8'))
         self.assertEqual(metadata['payloadFormat'], 3)
         self.assertEqual(metadata['minimumVersion'], '26.1111.2228.0')
-        self.assertEqual(metadata['clientVersions'], ['26.1103.4239.0', '26.1111.2228.0'])
+        self.assertEqual(metadata['clientVersions'], ['26.1103.4239.0', '26.1111.2228.0', '26.1117.3838.0'])
         self.assertEqual(metadata, json.loads((package / 'runtime/dist/cdp-payload.json').read_text(encoding='utf-8')))
         for entry in ['Start-Skin.py', 'Build-Zip.py']:
             result = self.python_entry(package / entry, ['--help'], cwd=unrelated, env=env)

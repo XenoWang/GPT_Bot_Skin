@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readTranslations} from '../scripts/build.mjs';
 const translations=await readTranslations();
+import {readAdapter} from '../scripts/adapter-registry.mjs';
+import {authoringConfiguration} from '../scripts/coverage-runner.mjs';
+import {bundledPacks} from '../../../Skin_Usage/runtime/scripts/build-cdp-payload.mjs';
+import {fileURLToPath} from 'node:url';
 import {Appearance} from '../renderer/runtime.mjs';
 
 // A small DOM adapter exercises ownership and lifecycle, not browser layout.
@@ -112,4 +116,155 @@ test('save failures are reported and invalid stored alpha is filtered on activat
  app.store.saveOpacities=async()=>{throw new Error('disk unavailable')};app.setOpacity('regions.composer.style.surfaceOpacity',.3);await app.saveOpacityPreferences();assert.equal(app.noticeMessage.key,'opacityFailed');assert.equal(app.pack.manifest.regions.composer.style.surfaceOpacity,.3);
  app.store.saveLanguage=async()=>{throw new Error('disk unavailable')};await app.setLanguage('en');assert.equal(app.noticeMessage.key,'languageFailed');assert.equal(app.toggle.textContent,'Skin');
  app.opacityPreferences.first={'regions.composer.style.surfaceOpacity':.2,'arbitrary.path':.8,'regions.userMessages.style.surfaceOpacity':2};await app.activate('first',false);assert.equal(app.pack.manifest.regions.composer.style.surfaceOpacity,.2);assert.equal(app.pack.manifest.regions.userMessages.style.surfaceOpacity,.7);
+});
+
+
+test('new layout labels all four shipped skins without changing selection IDs or older labels',async t=>{
+ const {app}=setup(t);
+ const packages=await bundledPacks(fileURLToPath(new URL('../../../Skin_Usage/runtime/',import.meta.url)));
+ const ids=['kurumi-twilight','neutral-dark','spring-sakura','planeptune-sisters'];
+ app.packs=new Map(packages.map(pack=>[pack.manifest.id,pack]));
+ assert.deepEqual([...app.packs.keys()],ids);
+ app.bundledSkinIds=new Set(ids);
+ app.packs.set('personal',{manifest:{id:'personal',name:'Personal'}});
+ app.active='spring-sakura';
+ for(const version of ['26.1103.4239.0','26.1111.2228.0','26.1117.3838.0','26.1117.3838.1']){
+  app.adapter=await readAdapter(version);
+  app.renderList();
+  const options=app.select.children;
+  assert.deepEqual(options.map(o=>o.value),['original',...ids,'personal']);
+  assert.equal(app.select.value,'spring-sakura');
+  for(const option of options){
+   if(version==='26.1117.3838.0'&&ids.includes(option.value))
+    assert.match(option.textContent,/新版使用（26\.1117\.3838\.0）/);
+   else assert.doesNotMatch(option.textContent,/新版使用/);
+  }
+ }
+ const {adapter,plan,controls}=await authoringConfiguration('26.1117.3838.0');
+ for(const config of [adapter,plan,controls])assert.equal(config.version,'26.1117.3838.0');
+ assert.ok(controls.protectedStates.includes('settings-passwords'));
+});
+
+test('switching the visible workspace retargets skin marks and ignores unrelated inline style changes',async t=>{
+ const {app,doc}=setup(t);
+ app.adapter=await readAdapter('26.1117.3838.0');
+ app.pack={manifest:{regions:{composer:{enabled:true,style:{surface:'#303030'}}}}};
+ const panes=[new Node('div'),new Node('div')],targets=[new Node('div'),new Node('div')];
+ let activeIndex=0;
+ for(const [index,pane] of panes.entries()){
+  pane.contains=n=>n===targets[index];
+  pane.matches=q=>q===app.adapter.workspacePane;
+  targets[index].closest=()=>null;
+  targets[index].matches=()=>false;
+  targets[index].removeAttribute=key=>delete targets[index].attributes[key];
+ }
+ const restore=new Map(['getComputedStyle','requestAnimationFrame'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
+ t.after(()=>{for(const [k,d] of restore){if(d)Object.defineProperty(globalThis,k,d);else delete globalThis[k];}});
+ globalThis.getComputedStyle=pane=>({display:pane===panes[activeIndex]?'contents':'none'});
+ let callback=null;
+ globalThis.requestAnimationFrame=fn=>{callback=fn;return 1;};
+ doc.querySelectorAll=q=>q===app.adapter.workspacePane?panes:app.adapter.regions.composer.includes(q)?targets:[];
+ app.refresh();
+ assert.equal(app.counts.composer,1);
+ assert.equal(targets[0].getAttribute('data-codex-appearance'),'composer');
+ assert.equal(targets[1].getAttribute('data-codex-appearance'),null);
+ app.onMutations([{type:'attributes',attributeName:'style',target:targets[0]}]);
+ assert.equal(callback,null);
+ activeIndex=1;
+ app.onMutations([{type:'attributes',attributeName:'style',target:panes[1]}]);
+ assert.equal(typeof callback,'function');callback();
+ assert.equal(app.counts.composer,1);
+ assert.equal(targets[0].getAttribute('data-codex-appearance'),null);
+ assert.equal(targets[1].getAttribute('data-codex-appearance'),'composer');
+});
+
+test('new-layout controls retain the original packs and provide all four skins with menus, fields and hover',async t=>{
+ const packs=await bundledPacks(fileURLToPath(new URL('../../../Skin_Usage/runtime/',import.meta.url)));
+ const old=packs.map(p=>JSON.stringify(p.manifest));
+ const expected=new Map([
+  ['kurumi-twilight',['#A71032','#16090F','#13090D']],
+  ['neutral-dark',['#748196','#20242e','#191d26']],
+  ['spring-sakura',['#B95C81','#FFE4EC','#FFE4EC']],
+  ['planeptune-sisters',['#8050B5','#100F1B','#1B1527']]
+ ]);
+ const originalObserver=Object.getOwnPropertyDescriptor(globalThis,'MutationObserver');
+ globalThis.MutationObserver=class {observe(){} disconnect(){}};
+ t.after(()=>{if(originalObserver)Object.defineProperty(globalThis,'MutationObserver',originalObserver);else delete globalThis.MutationObserver;});
+ for(const version of ['26.1117.3838.0','26.1111.2228.0']){
+  const {app}=setup(t,packs[0]);
+  app.adapter=await readAdapter(version);
+  app.packs=new Map(packs.map(p=>[p.manifest.id,p]));
+  app.makePanel=()=>{};
+  app.syncLanguageWatch=()=>{};
+  app.decode=async()=>({});
+  app.refresh=()=>{};
+  app.store.open=async()=>{throw Error('Synthetic offline storage');};
+  await app.start();
+  for(const [i,p] of packs.entries()){
+   const id=p.manifest.id;await app.activate(id,false);
+   const m=app.pack.manifest;
+   assert.equal(m.id,id);
+   if(version==='26.1117.3838.0'){
+    assert.deepEqual([m.hover.surface,m.regions.dialogs.style.surface,m.regions.inputs.style.surface],expected.get(id));
+    assert.ok(m.regions.dialogs.enabled&&m.regions.inputs.enabled&&m.regions.menus.enabled);
+   }else{
+    assert.deepEqual(m.hover,p.manifest.hover);
+    assert.deepEqual(m.regions.dialogs,p.manifest.regions.dialogs);
+    assert.deepEqual(m.regions.inputs,p.manifest.regions.inputs);
+   }
+   assert.equal(JSON.stringify(p.manifest),old[i]);
+  }
+ }
+});
+
+test('complete themed border and inset keyboard focus are scoped to the new layout',async t=>{
+ const {app}=setup(t);
+ app.pack={manifest:{regions:{
+  inputs:{enabled:true,style:{surface:'#191018',surfaceOpacity:.85}},
+  dialogs:{enabled:true,style:{surface:'#211822',border:'#C29B52',borderOpacity:.45}}
+ }}};
+ for(const version of ['26.1111.2228.0','26.1117.3838.0']){
+  app.adapter=await readAdapter(version);
+  app.refresh();
+  const css=app.style.textContent;
+  if(version==='26.1117.3838.0'){
+   assert.ok(css.includes('border:1px solid rgba(194,155,82,0.45)!important'));
+   assert.ok(css.includes('outline:2px solid #C29B52!important;outline-offset:-2px!important'));
+   assert.ok(css.includes(':has(> input:focus-visible)'));
+  }else{
+   assert.ok(!css.includes('outline-offset:-2px!important'));
+  }
+ }
+});
+
+test('all four new-layout semantic hover palettes keep readable text without changing old profiles',async()=>{
+ const adapter=await readAdapter('26.1117.3838.0');
+ const old=await readAdapter('26.1111.2228.0');
+ assert.equal(old.controlAppearance,undefined);
+ const toRGB=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
+ function luminance(rgb){
+  const linear=rgb.map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);
+  return linear[0]*.2126+linear[1]*.7152+linear[2]*.0722;
+ }
+ function ratio(a,b){
+  const x=luminance(a),y=luminance(b);
+  return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
+ }
+ // Surfaces and hover defaults come from the four skin designs. The minimum
+ // is the normal-text contrast requirement, independent of the renderer.
+ const cases=[
+  ['kurumi-twilight','#13090D','#A71032',.60,'#13090D'],
+  ['neutral-dark','#20242e','#748196',.32,'#191d26'],
+  ['spring-sakura','#FFE4EC','#B95C81',.30,'#FFE4EC'],
+  ['planeptune-sisters','#100F1B','#8050B5',.38,'#1B1527']
+ ];
+ for(const [id,menu,highlight,opacity,field] of cases){
+  const pal=adapter.controlAppearance.palettes[id];
+  assert.ok(ratio(toRGB(pal.primary),toRGB(pal.onPrimary))>=4.5,id+' primary');
+  const hover=toRGB(highlight).map((v,i)=>v*opacity+toRGB(menu)[i]*(1-opacity));
+  const red=toRGB(pal.danger);
+  assert.ok(red[0]>red[1]&&red[0]>red[2],id+' danger keeps a red hue');
+  assert.ok(ratio(red,hover)>=4.5,id+' destructive action hover');
+  assert.ok(ratio(toRGB(pal.link),toRGB(field))>=4.5,id+' settings link');
+ }
 });

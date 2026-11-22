@@ -24,6 +24,16 @@ export class Appearance {
  constructor(adapter,builtin,translations={}){this.adapter=adapter;this.translations=translations;this.packs=new Map([[builtin.manifest.id,builtin]]);this.builtin=builtin.manifest.id;this.active='original';this.mounted=new Map();this.oldMarks=new Map();this.transparent=new Set();this.clips=new Map();this.generation=0;this.counts={};this.store=new Store();this.queue=Promise.resolve();this.layoutPreferences={};this.opacityPreferences={};this.languagePreference='auto';this.language=skinLanguage('auto',this.appLanguage(),this.translations);this.sceneSidebarWidth=adapter.chatLayoutState?.defaultSidebarWidth??296;}
  async start(){
    this.features={sharedScene:1};
+  this.bundledSkinIds=new Set(this.packs.keys());
+  // Apply control defaults only to bundled skins in this layout. Imported packs keep their own manifest.
+  for(const [id,defaults] of Object.entries(this.adapter.bundledControlDefaults??{})){
+   const pack=this.packs.get(id);if(!pack)continue;
+   const manifest={...pack.manifest,regions:{...pack.manifest.regions}};
+   for(const [region,style] of Object.entries(defaults.regions??{}))
+    if(!manifest.regions[region]?.enabled)manifest.regions[region]={enabled:true,style};
+   if(!manifest.hover&&defaults.hover)manifest.hover=defaults.hover;
+   this.packs.set(id,validatePack({...pack,manifest}));
+  }
   this.style=el('style');this.style.setAttribute(OWN,'style');document.head.append(this.style);this.makePanel();
   this.observer=new MutationObserver(records=>this.onMutations(records));
   this.observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:this.adapter.observedAttributes??[]});
@@ -40,7 +50,9 @@ export class Appearance {
  reportError(error){this.report('operationFailed',{error});}
  onMutations(records){
   const external=n=>!((n?.nodeType===1?n:n?.parentElement)?.closest?.(`[${OWN}]`));
-  if(!this.scheduled&&records.some(r=>r.type==='attributes'?external(r.target):[...r.addedNodes,...r.removedNodes].some(external)))this.scheduled=requestAnimationFrame(()=>{this.scheduled=0;this.refresh();});
+  // Cached panes change their inline display on tab switches. Ignore unrelated style writes.
+  const relevantAttribute=r=>external(r.target)&&(r.attributeName!=='style'||(this.adapter.workspacePane&&r.target.matches(this.adapter.workspacePane)));
+  if(!this.scheduled&&records.some(r=>r.type==='attributes'?relevantAttribute(r):[...r.addedNodes,...r.removedNodes].some(external)))this.scheduled=requestAnimationFrame(()=>{this.scheduled=0;this.refresh();});
  }
  makePanel(){
   this.host=el('div');this.host.setAttribute(OWN,'manager');document.body.append(this.host);const root=this.host.attachShadow({mode:'open'});
@@ -80,7 +92,9 @@ export class Appearance {
   if(dock!==this.managerDock||reference!==this.managerReference||anchor!==this.managerAnchor){this.managerObserver.disconnect();this.managerDock=dock;this.managerReference=reference;this.managerAnchor=anchor;if(dock)this.managerObserver.observe(dock);if(reference)this.managerObserver.observe(reference);if(anchor)this.managerObserver.observe(anchor);}
   const width=reference?.getBoundingClientRect().width;this.launcher.style.setProperty('--appearance-native-size',(Number.isFinite(width)&&width>0?Math.min(width,36):36)+'px');
  }
- renderList(){this.select.replaceChildren();const native=el('option',this.t('original'));native.value='original';this.select.append(native);for(const [id,p]of this.packs){const o=el('option',skinDisplayName(p.manifest,this.language,this.translations));o.value=id;this.select.append(o);}this.select.value=this.active;this.layoutSelect.disabled=!this.pack?.manifest.sidebarLayout;this.layoutSelect.value=this.pack?.manifest.sidebarLayout?.mode??'merged';this.renderOpacityControls();}
+ renderList(){this.select.replaceChildren();const native=el('option',this.t('original'));native.value='original';this.select.append(native);for(const [id,p]of this.packs){const name=skinDisplayName(p.manifest,this.language,this.translations);
+   const label=this.adapter.bundledSkinLabel&&this.bundledSkinIds?.has(id)?this.t(this.adapter.bundledSkinLabel,{name,version:this.adapter.version}):name;
+   const o=el('option',label);o.value=id;this.select.append(o);}this.select.value=this.active;this.layoutSelect.disabled=!this.pack?.manifest.sidebarLayout;this.layoutSelect.value=this.pack?.manifest.sidebarLayout?.mode??'merged';this.renderOpacityControls();}
  opacityValues(id,manifest){const saved=Object.hasOwn(this.opacityPreferences,id)?this.opacityPreferences[id]:{},allowed=new Set(opacityOptions(manifest).map(option=>option.key));return Object.fromEntries(Object.entries(saved??{}).filter(([key,value])=>allowed.has(key)&&typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=1));}
  renderOpacityControls(){
   if(!this.opacityFields)return;this.opacityFields.replaceChildren();const id=this.active,options=this.pack?opacityOptions(this.pack.manifest,this.language,this.translations):[];this.opacityTitle.textContent=this.t('opacityTitle',{count:options.length});this.opacityReset.disabled=!options.length;
@@ -139,15 +153,35 @@ export class Appearance {
   // Cached native nodes can return after an older engine stopped tracking them.
   for(const n of document.querySelectorAll(`[${MARK}]`))if(!this.oldMarks.has(n)&&!n.closest(`[${OWN}]`)){const tokens=(n.getAttribute(MARK)??'').split(' ').filter(Boolean),owned=t=>Object.hasOwn(this.adapter.regions,t);if(tokens.some(owned))this.oldMarks.set(n,tokens.filter(t=>!owned(t)).join(' ')||null);}
   for(const [n,v]of this.mounted)if(!n.isConnected||v.layer.parentElement!==n){v.ro?.disconnect();v.layer.remove();this.mounted.delete(n);n.removeAttribute('data-codex-appearance-bg');n.removeAttribute('data-codex-appearance-static');}
+  const hitOnly=this.adapter.hoverHitArea?HIT_ONLY_BUTTONS+','+this.adapter.hoverHitArea:HIT_ONLY_BUTTONS;
+  const controlAppearance=this.adapter.controlAppearance;
+  const palette=this.bundledSkinIds?.has(this.active)?controlAppearance?.palettes[this.active]:null;
+  const hoverExclusions=palette?[hitOnly,controlAppearance.primary,controlAppearance.settingsLink].join(','):hitOnly;
+  const hiddenPanes=this.adapter.workspacePane
+   ? [...document.querySelectorAll(this.adapter.workspacePane)].filter(pane=>getComputedStyle(pane).display==='none')
+   : [];
   const desired=new Map(),visualNodes=new Set(),clearNodes=new Set();
   const css=['[data-codex-appearance-bg]{isolation:isolate!important;background-color:transparent!important;background-image:none!important}[data-codex-appearance-static]{position:relative!important}[data-codex-appearance-clear]{background-color:transparent!important;background-image:none!important}[data-codex-appearance-clip]{clip-path:inset(0 0 var(--codex-appearance-clip-bottom,0px) 0)!important}[data-codex-appearance-fade]{mask-image:linear-gradient(to bottom,transparent var(--codex-appearance-fade-start,0px),#000 var(--codex-appearance-fade-end,0px))!important;mask-repeat:no-repeat!important;mask-size:100% 100%!important}'];this.counts={};
   for(const [name,rule]of Object.entries(this.pack.manifest.regions)){
-    if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,solidTitlebar=name==='titlebar'&&!background&&!rule.gradient&&!!rule.style?.surface,visual=background||rule.gradient||rule.ornament||rule.decals?.length||solidTitlebar;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`)&&(name!=='buttons'||!n.matches?.(HIT_ONLY_BUTTONS)));
+    if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,solidTitlebar=name==='titlebar'&&!background&&!rule.gradient&&!!rule.style?.surface,visual=background||rule.gradient||rule.ornament||rule.decals?.length||solidTitlebar;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`)&&!hiddenPanes.some(pane=>pane.contains(n))&&(name!=='buttons'||!n.matches?.(hitOnly)));
     if(name==='dialogs')nodes=[...new Set(nodes.map(n=>n.matches?.('[data-slot="popover-content"]')?n.querySelector('[class~="group/summary-panel"]')??n:n))];
     if(visual||this.adapter.outermostRegions?.includes(name))nodes=nodes.filter(n=>!nodes.some(parent=>parent!==n&&parent.contains(n)));this.counts[name]=nodes.length;
     for(const n of nodes){if(!desired.has(n))desired.set(n,new Set());desired.get(n).add(name);this.tag(n,name);if(visual){visualNodes.add(n);if(!this.mounted.has(n)){if(background)this.mountBackground(n,name,background,shared);else this.mountDecoration(n,name,rule);}else this.mounted.get(n)?.update();}}
    const selector=`[${MARK}~="${name}"]`,style=rule.gradient||solidTitlebar?Object.fromEntries(Object.entries(rule.style??{}).filter(([key])=>!['surface','surfaceOpacity'].includes(key))):rule.style;if(name==='scrollbars'){const s=rule.style??{};if(s.text&&s.surface)css.push(`${selector}{scrollbar-color:${s.text} ${s.surface}!important}`);}else css.push(`${selector}{${declarations(style)}}`);
-    if(name==='dialogs'&&style?.surface)css.push(`${selector}[class~="group/summary-panel"]{--color-surface-elevated-secondary:${rgba(style.surface,style.surfaceOpacity??1)}!important}`);
+    if(name==='inputs'&&style&&this.adapter.inputFrameElements){
+    const box=selector+':is('+this.adapter.inputFrameElements+'):not(:disabled,[aria-disabled="true"],[aria-invalid="true"]):not(:has(> :is(input,textarea,select):is([aria-invalid="true"],:disabled)))';
+    const border=style.border??dialogRule?.style?.border;
+    if(border){
+     const opacity=style.border?style.borderOpacity:dialogRule.style.borderOpacity;
+     css.push(`${box}{box-sizing:border-box;border:${style.borderWidth??1}px solid ${rgba(border,opacity??1)}!important}`);
+    }
+    const focusColor=border??style.text??'currentColor';
+    if(border)css.push(`${box}:hover:not(:focus-within){border-color:color-mix(in srgb,${border} 70%,${style.text??'currentColor'})!important}`);
+    css.push(`${box}:is(:focus-visible,:has(> input:focus-visible),:has(.cm-content:focus-visible)){border-color:${focusColor}!important;outline:2px solid ${focusColor}!important;outline-offset:-2px!important}`);
+    if(controlAppearance?.editorText&&style.text)css.push(`${controlAppearance.editorText}{color:${style.text}!important;caret-color:${style.text}!important}`);
+    css.push(`${box}::placeholder,${box} > input::placeholder{color:currentColor;opacity:.7}`);
+   }
+   if(name==='dialogs'&&style?.surface)css.push(`${selector}[class~="group/summary-panel"]{--color-surface-elevated-secondary:${rgba(style.surface,style.surfaceOpacity??1)}!important}`);
     if(style?.text){
      if(NEUTRAL_TEXT_REGIONS.has(name))css.push(`${selector}{${['--color-text','--color-text-secondary','--color-text-tertiary','--color-codex-description','--button-text-color','--button-text-color-hover'].map(key=>key+':'+style.text+'!important').join(';')}}`);
      if(name==='userMessages')css.push(`${selector} [data-markdown-text-tone="user-message"]{color:${style.text}!important}`);
@@ -170,7 +204,16 @@ export class Appearance {
   for(const [n,old]of this.oldMarks){const names=desired.get(n);if(!names){if(old===null)n.removeAttribute(MARK);else n.setAttribute(MARK,old);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');this.oldMarks.delete(n);}else{const tokens=new Set((old??'').split(' ').filter(Boolean));for(const name of names)tokens.add(name);n.setAttribute(MARK,[...tokens].join(' '));if(!visualNodes.has(n)){n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}}}
   for(const [n,v]of this.mounted)if(!visualNodes.has(n)){v.ro?.disconnect();v.layer.remove();this.mounted.delete(n);n.removeAttribute('data-codex-appearance-static');n.removeAttribute('data-codex-appearance-bg');}
   for(const n of this.transparent)if(!clearNodes.has(n))n.removeAttribute('data-codex-appearance-clear');this.transparent=clearNodes;
-   if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(${HIT_ONLY_BUTTONS}):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}{${declarations(hover)}}`);}
+   if(hover){for(const selector of this.adapter.hoverTargets??[])css.push(`${selector}:hover:not(:disabled):not([aria-disabled="true"]):not(${hoverExclusions}):not(:has(${this.adapter.hoverInteractive}:hover)){${declarations(hover)}}`);for(const selector of this.adapter.hoverScrollbars??[])css.push(`${selector}:hover{${declarations(hover)}}`);for(const selector of this.adapter.hoverPseudoTargets??[])css.push(`${selector}{${declarations(hover)}}`);for(const selector of this.adapter.activeTargets??[])css.push(`${selector}{${declarations(hover)}}`);}
+  if(palette&&hover){
+   const enabled=':not(:disabled,[aria-disabled="true"],[data-disabled])';
+   const primary=controlAppearance.primary+enabled+':hover';
+   css.push(`${primary}{--button-background-color-hover:${palette.primary}!important;--button-text-color-hover:${palette.onPrimary}!important;background-color:${palette.primary}!important;color:${palette.onPrimary}!important}`);
+   css.push(`${controlAppearance.secondaryText}${enabled}:hover{color:var(--color-text,currentColor)!important}`);
+   css.push(`${controlAppearance.dangerItem}${enabled}{--color-text-danger:${palette.danger}!important;color:${palette.danger}!important}`);
+   const linkSurface=this.pack.manifest.regions.inputs?.style?.surface;
+   if(linkSurface)css.push(`${controlAppearance.settingsLink}:is(:hover,:focus-visible){background-color:${linkSurface}!important;color:${palette.link}!important;text-decoration:underline}`);
+  }
   this.syncTranscriptClips();const text=css.join('\n');if(this.style.textContent!==text)this.style.textContent=text;this.diagnostics.textContent=this.t('diagnostics')+Object.entries(this.counts).map(([k,v])=>`${regionLabel(k,this.language,this.translations)} ${v}`).join(' · ');
  }
  mountDecals(layer,rule){

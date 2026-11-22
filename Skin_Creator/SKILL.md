@@ -10,6 +10,7 @@ Run `node scripts/creator.mjs <command> --session work/<draft> --format brief` f
 ## Load the current stage only
 
 - New creation, geometry or artwork: [creation-flow](references/creation-flow.md).
+- Windows client 26.1117.3838.0 layout or hover repairs: [native controls guide](references/layout-26.1117.3838.md).
 - Accepted background, controls or export: [control-adaptation](references/control-adaptation.md).
 - Actual failure or recurring visual defect: [recovery](references/recovery.md), then query the symptom. Do not preload its catalog or local history.
 - Exact arguments: the relevant section of [commands](references/authoring-cli.md), not the entire reference.

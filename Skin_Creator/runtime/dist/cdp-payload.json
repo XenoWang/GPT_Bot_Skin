@@ -1,10 +1,11 @@
 {
-  "revision": "7e477b392c498f5ac0e4be0b08613400dfecea8833eb39e6529b4f7e9e09aa88",
-  "bytes": 13590949,
+  "revision": "25ad7bbbb511e30048582b84a66f2d38f041aa5cd5495d53a7edd62d78f9e78c",
+  "bytes": 13609574,
   "payloadFormat": 3,
   "clientVersions": [
     "26.1103.4239.0",
-    "26.1111.2228.0"
+    "26.1111.2228.0",
+    "26.1117.3838.0"
   ],
   "minimumVersion": "26.1111.2228.0"
 }

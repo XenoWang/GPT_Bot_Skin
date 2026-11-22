@@ -7,6 +7,7 @@
     "档案"
   ],
   "strings": {
+    "newLayoutSkin": "{name} · 新版使用（{version}）",
     "title": "外观主题",
     "launcher": "主题",
     "launcherLabel": "打开外观主题管理",

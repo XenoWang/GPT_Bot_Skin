@@ -156,7 +156,9 @@ export class Appearance {
   const hitOnly=this.adapter.hoverHitArea?HIT_ONLY_BUTTONS+','+this.adapter.hoverHitArea:HIT_ONLY_BUTTONS;
   const controlAppearance=this.adapter.controlAppearance;
   const palette=this.bundledSkinIds?.has(this.active)?controlAppearance?.palettes[this.active]:null;
-  const hoverExclusions=palette?[hitOnly,controlAppearance.primary,controlAppearance.settingsLink].join(','):hitOnly;
+  const imageComposer=this.adapter.imageComposer;
+  const imageButtons=imageComposer?imageComposer.rail+' '+imageComposer.buttons:null;
+  const hoverExclusions=palette?[hitOnly,controlAppearance.primary,controlAppearance.settingsLink,this.adapter.settingsChrome?.switch,imageButtons].filter(Boolean).join(','):hitOnly;
   const hiddenPanes=this.adapter.workspacePane
    ? [...document.querySelectorAll(this.adapter.workspacePane)].filter(pane=>getComputedStyle(pane).display==='none')
    : [];
@@ -164,7 +166,18 @@ export class Appearance {
   const css=['[data-codex-appearance-bg]{isolation:isolate!important;background-color:transparent!important;background-image:none!important}[data-codex-appearance-static]{position:relative!important}[data-codex-appearance-clear]{background-color:transparent!important;background-image:none!important}[data-codex-appearance-clip]{clip-path:inset(0 0 var(--codex-appearance-clip-bottom,0px) 0)!important}[data-codex-appearance-fade]{mask-image:linear-gradient(to bottom,transparent var(--codex-appearance-fade-start,0px),#000 var(--codex-appearance-fade-end,0px))!important;mask-repeat:no-repeat!important;mask-size:100% 100%!important}'];this.counts={};
   for(const [name,rule]of Object.entries(this.pack.manifest.regions)){
     if(!rule.enabled)continue;const shared=this.pack.manifest.scene?.regions.includes(name),background=shared?this.pack.manifest.scene.background:rule.background,solidTitlebar=name==='titlebar'&&!background&&!rule.gradient&&!!rule.style?.surface,visual=background||rule.gradient||rule.ornament||rule.decals?.length||solidTitlebar;let nodes=[...new Set((this.adapter.regions[name]??[]).flatMap(s=>[...document.querySelectorAll(s)]))].filter(n=>!n.closest(`[${OWN}]`)&&!hiddenPanes.some(pane=>pane.contains(n))&&(name!=='buttons'||!n.matches?.(hitOnly)));
-    if(name==='dialogs')nodes=[...new Set(nodes.map(n=>n.matches?.('[data-slot="popover-content"]')?n.querySelector('[class~="group/summary-panel"]')??n:n))];
+    if(name==='dialogs'){
+     const dialogs=new Set();
+     for(const node of nodes){
+      if(!node.matches?.('[data-slot="popover-content"]')){dialogs.add(node);continue;}
+      const panel=this.adapter.pickerSurface?node.querySelector(this.adapter.pickerSurface.directPanel):null;
+      if(panel){
+       // A positioning host must not paint a second square behind its rounded panel.
+       if(!this.pack.manifest.regions.menus?.enabled)dialogs.add(panel);
+      }else dialogs.add(node.querySelector('[class~="group/summary-panel"]')??node);
+     }
+     nodes=[...dialogs];
+    }
     if(visual||this.adapter.outermostRegions?.includes(name))nodes=nodes.filter(n=>!nodes.some(parent=>parent!==n&&parent.contains(n)));this.counts[name]=nodes.length;
     for(const n of nodes){if(!desired.has(n))desired.set(n,new Set());desired.get(n).add(name);this.tag(n,name);if(visual){visualNodes.add(n);if(!this.mounted.has(n)){if(background)this.mountBackground(n,name,background,shared);else this.mountDecoration(n,name,rule);}else this.mounted.get(n)?.update();}}
    const selector=`[${MARK}~="${name}"]`,style=rule.gradient||solidTitlebar?Object.fromEntries(Object.entries(rule.style??{}).filter(([key])=>!['surface','surfaceOpacity'].includes(key))):rule.style;if(name==='scrollbars'){const s=rule.style??{};if(s.text&&s.surface)css.push(`${selector}{scrollbar-color:${s.text} ${s.surface}!important}`);}else css.push(`${selector}{${declarations(style)}}`);
@@ -213,6 +226,56 @@ export class Appearance {
    css.push(`${controlAppearance.dangerItem}${enabled}{--color-text-danger:${palette.danger}!important;color:${palette.danger}!important}`);
    const linkSurface=this.pack.manifest.regions.inputs?.style?.surface;
    if(linkSurface)css.push(`${controlAppearance.settingsLink}:is(:hover,:focus-visible){background-color:${linkSurface}!important;color:${palette.link}!important;text-decoration:underline}`);
+  }
+  if(imageButtons&&palette){
+   const editingSurface=this.pack.manifest.regions.inputs?.style?.surface;
+   if(editingSurface){
+    // The single-line image composer paints a separate pill behind the model and microphone controls.
+    const idle=imageButtons+':not(:disabled,[aria-disabled="true"],[data-disabled],[aria-busy="true"],[aria-pressed="true"],[data-state="recording"])';
+    css.push(`${imageComposer.rail}{--composer-layout-surface-background:${editingSurface};background-color:${editingSurface}!important}`);
+    css.push(`${idle}{--color-text-tertiary:${palette.secondary};--color-codex-icon:${palette.secondary};color:${palette.secondary}!important}`);
+    css.push(`${idle}:is(:hover,:focus-visible,[data-state="open"]){--color-text:${palette.onPrimary};--color-text-tertiary:${palette.onPrimary};--color-codex-icon:${palette.onPrimary};color:${palette.onPrimary}!important;background-color:${palette.primary}!important}`);
+   }
+  }
+  if(this.adapter.pickerSurface){
+   const menus=this.pack.manifest.regions.menus;
+   const rule=menus?.enabled?menus:dialogRule;
+   if(rule?.enabled&&rule.style?.surface){
+    const node=this.adapter.pickerSurface.root+':is([data-codex-appearance~="menus"],[data-codex-appearance~="dialogs"])';
+    const foreground=rule.style.text??palette?.text;
+    // The neutral glyph consumes this token. Explicit swatches and colored glyphs use their own colors.
+    if(foreground)css.push(`${node}{--color-codex-icon:${foreground}!important}`);
+    if(rule.style.borderWidth>0&&!rule.style.shadow)css.push(`${node}{box-shadow:var(--tw-shadow,0 0 transparent)!important}`);
+   }
+  }
+  const chrome=this.adapter.settingsChrome;
+  const settingsStyle=this.pack.manifest.regions.settings?.style;
+  const popupStyle=dialogRule?.enabled&&dialogRule.style;
+  if(chrome&&palette&&this.pack.manifest.regions.settings?.enabled&&settingsStyle?.surface&&popupStyle?.surface){
+   const sheet=popupStyle.surface;
+   const surface=settingsStyle.surface;
+   const panelFill=this.pack.manifest.regions.inputs?.style?.surface??sheet;
+   const line=rgba(settingsStyle.border??palette.outline,settingsStyle.borderOpacity??.75);
+   const text=settingsStyle.text??palette.text;
+   const muted=palette.secondary;
+   // Bind neutral design tokens inside settings. Status, chart and code-token colors remain native.
+   css.push(`${chrome.panel},.settings-dialog{--color-background-panel:${panelFill};--color-surface:${sheet};--color-surface-secondary:${surface};--color-surface-elevated:${surface};--color-surface-elevated-secondary:${surface};--color-background-page-search:${surface};--color-border:${line};--color-border-strong:${palette.outline};--color-text:${text};color:${text}!important}`);
+   css.push(`${chrome.standalone}{background-color:${rgba(sheet,(popupStyle.surfaceOpacity??1)*.82)}!important}`);
+   css.push(`${chrome.panel} :is(.text-secondary,.text-tertiary){color:${muted}}${chrome.panel} a[href]:not(.cm-editor *):not(.text-danger){--link-primary-text-color:${palette.link}!important;--link-primary-text-color-hover:${palette.link}!important;color:${palette.link}!important;text-decoration:underline}`);
+   // The native panel resets section radius, border and inline padding. Restore the actual group, not its children.
+   css.push(`${chrome.rowCard}[data-codex-appearance~="settings"]{--settings-row-padding-inline:clamp(10px,1.25vw,16px)!important;border:1px solid ${line}!important;border-radius:var(--radius-2xl,16px)!important;box-sizing:border-box;box-shadow:none!important}`);
+   css.push(`${chrome.notice}[data-codex-appearance~="settings"]{background-color:${rgba(surface,settingsStyle.surfaceOpacity??1)}!important;border:1px solid ${line}!important;color:${text}!important}`);
+   css.push(`${chrome.sticky}{--color-surface:${sheet};background-color:${sheet}!important}${chrome.sticky}::after{background-image:linear-gradient(to bottom,${sheet},${rgba(sheet,0)})!important}`);
+   // Preserve the title height. The rounded group or the native table already draws this shared edge.
+   css.push(`${chrome.framedSectionHeader}{border-bottom-color:transparent!important}`);
+   const toggle=chrome.switch+':not(:disabled,[aria-disabled="true"],[data-disabled])';
+   css.push(`${toggle} > span[data-state]{--switch-track-color-checked:${palette.checkedTrack};--switch-thumb-color-checked:${palette.checkedThumb};--switch-thumb-color:${muted}}`);
+   css.push(`${toggle} > span[data-state="unchecked"]{background-color:${rgba(palette.outline,.20)}!important;box-shadow:inset 0 0 0 1px ${line}}${toggle}:hover > span[data-state]{box-shadow:0 0 0 2px ${rgba(palette.outline,.68)}}`);
+   css.push(`${chrome.panel} button:is(.text-danger,.text-danger-soft-alpha):not(:disabled,[aria-disabled="true"]){--color-text-danger:${palette.danger};--color-text-danger-soft-alpha:${palette.danger};color:${palette.danger}!important}`);
+   const tip=this.pack.manifest.regions.tooltips;
+   if(tip?.enabled&&tip.style?.surface){
+    css.push(`${chrome.preview}[data-codex-appearance~="tooltips"]{--color-text:${tip.style.text??palette.text};--color-text-secondary:${muted};--color-text-tertiary:${muted};--color-border:${line};color:${tip.style.text??palette.text}!important}`);
+   }
   }
   this.syncTranscriptClips();const text=css.join('\n');if(this.style.textContent!==text)this.style.textContent=text;this.diagnostics.textContent=this.t('diagnostics')+Object.entries(this.counts).map(([k,v])=>`${regionLabel(k,this.language,this.translations)} ${v}`).join(' · ');
  }

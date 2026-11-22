@@ -268,3 +268,93 @@ test('all four new-layout semantic hover palettes keep readable text without cha
   assert.ok(ratio(toRGB(pal.link),toRGB(field))>=4.5,id+' settings link');
  }
 });
+
+test('new desktop settings paint the section and switch track, not just the search input',async t=>{
+ const {app}=setup(t);
+ const fills={'kurumi-twilight':'#16090F','neutral-dark':'#20242e','spring-sakura':'#FFE4EC','planeptune-sisters':'#100F1B'};
+ const tracks={'kurumi-twilight':'#E0AE61','neutral-dark':'#A7BAD5','spring-sakura':'#9D3D62','planeptune-sisters':'#B59BD1'};
+ app.bundledSkinIds=new Set(Object.keys(fills));
+ for(const [id,fill] of Object.entries(fills)){
+  app.active=id;app.pack={manifest:{regions:{dialogs:{enabled:true,style:{surface:fill}},settings:{enabled:true,style:{surface:fill}},tooltips:{enabled:true,style:{surface:fill}}}}};
+  app.adapter=await readAdapter('26.1117.3838.0');app.refresh();
+  const css=app.style.textContent;
+  assert.ok(css.includes('background-image:linear-gradient(to bottom,'+fill+','),id+' toolbar fade');
+  assert.ok(css.includes('--settings-row-padding-inline:clamp(10px,1.25vw,16px)!important'),id+' inner gutter');
+  assert.ok(css.includes('border-radius:var(--radius-2xl,16px)!important'),id+' rounded group');
+  assert.ok(css.includes('--switch-track-color-checked:'+tracks[id]),id+' checked track');
+  assert.ok(css.includes('[data-codex-appearance~="tooltips"]{--color-text:'),id+' actual preview surface');
+  app.adapter=await readAdapter('26.1111.2228.0');app.refresh();
+  assert.ok(!app.style.textContent.includes('--settings-row-padding-inline:clamp('),id+' old layout');
+ }
+});
+
+test('permission cells use the editing surface and framed groups suppress only the adjoining title line',async t=>{
+ const {app}=setup(t);
+ app.active='planeptune-sisters';app.bundledSkinIds=new Set([app.active]);
+ app.pack={manifest:{regions:{
+  inputs:{enabled:true,style:{surface:'#1B1527'}},
+  settings:{enabled:true,style:{surface:'#21192F'}},
+  dialogs:{enabled:true,style:{surface:'#100F1B'}}
+ }}};
+ app.adapter=await readAdapter('26.1117.3838.0');app.refresh();
+ const css=app.style.textContent,chrome=app.adapter.settingsChrome;
+ assert.ok(css.includes('--color-background-panel:#1B1527;'),'body cells inherit the input surface');
+ assert.ok(css.includes('--color-surface-elevated-secondary:#21192F;'),'headers keep the raised surface');
+ assert.ok(css.includes(chrome.framedSectionHeader+'{border-bottom-color:transparent!important}'),'retain header layout and remove its duplicate paint');
+ assert.ok(chrome.framedSectionHeader.includes('section:has('));
+ app.adapter=await readAdapter('26.1111.2228.0');app.refresh();
+ assert.ok(!app.style.textContent.includes('--color-background-panel:#1B1527;'));
+});
+
+test('a symbol picker paints its rounded child once and preserves dialog-only skins',async t=>{
+ const {app,doc}=setup(t);
+ const host=new Node('div'),picker=new Node('div');
+ host.append(picker);
+ for(const node of [host,picker]){
+  node.closest=()=>null;
+  node.removeAttribute=key=>delete node.attributes[key];
+ }
+ host.matches=q=>q==='[data-slot="popover-content"]';
+ picker.matches=()=>false;
+ host.querySelector=q=>q.includes('[data-symbol-picker]')?picker:null;
+ doc.querySelectorAll=q=>{
+  if(q.startsWith("[role='dialog']:not("))return [host];
+  if(q.includes(" > [data-symbol-picker][role='presentation']"))return [picker];
+  return [];
+ };
+ app.adapter=await readAdapter('26.1117.3838.0');
+ const style={surface:'#FFE4EC',text:'#000000',border:'#D98BA4',borderWidth:1};
+ app.pack={manifest:{regions:{dialogs:{enabled:true,style},menus:{enabled:true,style}}}};
+ app.refresh();
+ assert.equal(host.getAttribute('data-codex-appearance'),null);
+ assert.equal(picker.getAttribute('data-codex-appearance'),'menus');
+ assert.ok(app.style.textContent.includes('--color-codex-icon:#000000!important'));
+ app.pack.manifest.regions.menus.enabled=false;
+ app.refresh();
+ assert.equal(host.getAttribute('data-codex-appearance'),null);
+ assert.equal(picker.getAttribute('data-codex-appearance'),'dialogs');
+});
+
+test('image composer scopes the model and dictation foregrounds and preserves the legacy route',async t=>{
+ const {app}=setup(t);
+ const colors=[
+  ['kurumi-twilight','#13090D','#DFC8BF','#A71032','#FFFFFF'],
+  ['neutral-dark','#191d26','#BEC8D6','#45546A','#FFFFFF'],
+  ['spring-sakura','#FFE4EC','#69404E','#F8CCD7','#24161C'],
+  ['planeptune-sisters','#1B1527','#D7C8E3','#542B87','#FFFFFF']
+ ];
+ app.bundledSkinIds=new Set(colors.map(([id])=>id));
+ for(const [id,base,ink,hover,hoverInk] of colors){
+  app.active=id;app.pack={manifest:{hover:{surface:hover,surfaceOpacity:.5},regions:{inputs:{enabled:true,style:{surface:base}}}}};
+  app.adapter=await readAdapter('26.1117.3838.0');app.refresh();
+  const {rail,buttons}=app.adapter.imageComposer;
+  const css=app.style.textContent;
+  assert.ok(rail.startsWith('[data-image-options-composer]'));
+  assert.ok(css.includes(rail+'{--composer-layout-surface-background:'+base));
+  assert.ok(css.includes('--color-codex-icon:'+ink+';color:'+ink+'!important'));
+  assert.ok(css.includes('color:'+hoverInk+'!important;background-color:'+hover+'!important'));
+  assert.ok(css.includes(rail+' '+buttons+':not(:disabled'));
+  app.adapter=await readAdapter('26.1111.2228.0');app.refresh();
+  assert.ok(!app.style.textContent.includes('--composer-layout-surface-background:'+base));
+ }
+});

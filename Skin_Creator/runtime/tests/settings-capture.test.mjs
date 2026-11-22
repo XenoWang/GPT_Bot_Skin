@@ -284,3 +284,17 @@ test('focused editable fields pause the settings batch without reading or changi
  await assert.rejects(f.run(),/leave the editable field/);
  assert.deepEqual(f.ui.clicks,[]);assert.equal(f.ui.current,'general-settings');assert.equal(f.opened,f.closed);
 });
+
+test('settings navigation discovers new native slugs and keeps protected panels opaque',async()=>{
+ const {settingsPanelObservation}=await import('../scripts/coverage-runner.mjs');
+ let selected='general-settings',inspections=0;
+ const tab=key=>({getBoundingClientRect:()=>({width:120,height:28}),closest:()=>null,
+  getAttribute:k=>k==='data-settings-panel-slug'?key:k==='aria-current'&&key===selected?'page':null});
+ const panel={getBoundingClientRect:()=>({width:624,height:480}),closest:()=>null,matches:()=>false,querySelector:()=>null,querySelectorAll:()=>[{},{}]};
+ const doc={querySelectorAll(q){if(q==='[data-settings-panel-slug]')return ['general-settings','appshots','passwords'].map(tab);
+  if(q==='[data-settings-panel]'){inspections++;return [panel];}throw Error('Unexpected traversal');}};
+ const observe=()=>vm.runInNewContext('('+settingsPanelObservation.toString()+')()',
+  {document:doc,getComputedStyle:()=>({visibility:'visible'})});
+ const fresh=observe();assert.deepEqual([...fresh.slugs],['general-settings','appshots','passwords']);assert.equal(fresh.layout,'624:480:2');
+ selected='passwords';assert.equal(observe().layout,null);assert.equal(inspections,1);
+});

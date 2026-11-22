@@ -52,5 +52,6 @@
   "protectedShellStates": [
     "settings-passwords"
   ],
-  "externalStates": []
+  "externalStates": [],
+  "inspectSettingsNavigation": true
 }

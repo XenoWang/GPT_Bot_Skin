@@ -3,12 +3,12 @@
   "files": {
     "adapters/codex-26.1103.json": "03f87a14f43356908798a2d5df66169c17f84d44fba4c32291024eef3e3d8cf3",
     "assets/codex-launcher.ico": "7c4bd139c305ac4de332c12cf4a3b10184715990afcf48b49f2478fbd1b0e19e",
-    "dist/cdp-payload.js": "e5c06e1c766352d98e405a11096500024ca487ea5c41d81a110206b77b1576df",
-    "dist/cdp-payload.json": "91fa67bbb5b3e788027f5c75dafc12f39886bd421f0305620ca23bd192100150",
+    "dist/cdp-payload.js": "674e90afb5b76a108a9d1ebb3311b95790c477f1a42e9a5197b2e58967446c8a",
+    "dist/cdp-payload.json": "0b2c8f7b9975e04fea69edbe82defbcaedc107a9ee0740bf8eab6c7f1126484c",
     "locales/en.json": "5b7c4b8acfd80e506452fb07cb35c4640a010ec7f0a234ff934acbc88dd65211",
     "locales/zh-CN.json": "5721c487472ac1872e9fc813bbbb70eb2941a626dedf6fede3ff1fae90a7b89c",
     "renderer/core.mjs": "e38bf6e77e3ed6e4b050e7c57d236be0918898bd9c57d0d1c0b6da2debfea397",
-    "renderer/runtime.mjs": "b993382d3d38eb3827e5aad1dac5cbdffe900740a5360bc33d8dead349bb05a4",
+    "renderer/runtime.mjs": "116f81886922f03de832ae8bc9fa3bef322b6f83c5ef87d3fbf1460e3db05c55",
     "runtime-profile.json": "93373f18766df2cef53aaf6896bb63352d60411b068e49f78fb3cbb69dc232a7",
     "scripts/Assert-CdpOwner.ps1": "d580f4b52d9d7cca172d59833f6109b08335292949b6b697925faf7eb7d23070",
     "scripts/Configure-CodexSkin.ps1": "8f3c9dd07d6290151a512c493db6f4c31d5d698537ba9cc8aeb9967f96d43b59",
@@ -20,10 +20,10 @@
     "scripts/cdp-companion.mjs": "37ee3627bae2982f2e24b2f8fd5dba9ab0e610824392ecab4f9b9f4124e7766f",
     "scripts/cdp-transport.mjs": "10e2f496b021488b416fb115429e7e842e8f6198409b1f72367e0d3a0bda1b68",
     "scripts/host-tools.mjs": "069c4fd6aa67f11fd5493f4bec5942375bf09b520a7580940de517d1683c3eae",
-    "scripts/inspect-ui-regions.mjs": "1c66d05024e8f6c847562222d44836ead05c7d23f541e58804db51288038f06e",
+    "scripts/inspect-ui-regions.mjs": "d1e6cc3baec0ab32519b586cd8168210f381164167b5c9157c5d3ea4cd0c2451",
     "scripts/python_host.py": "d592dc4a28c42d517caa7458e328d856d6844cf661d7de2d50d208c7342ec9dd",
     "scripts/python_launcher.py": "1c60dc81732c9b5b1ed3a0f4144044a17921deb0215e660f266c667ed46f4cc9",
-    "scripts/region-capabilities.mjs": "8f2055836fda088318a0fe0636a458bc2023d710999f3eb6d526f41db0b19aa3",
+    "scripts/region-capabilities.mjs": "e760a3cbbe367345a650683a27960498febe8f53e9a750044d6217778f3594ba",
     "scripts/release_package.py": "48a571ac5e1623a972cb68d9e8d3eee6bb43cd5af2280ed349423753b5a9c400",
     "theme-catalog.json": "98cff96091533160f3b091f816335f2929f33c71ef0c0f0e1bed6acbc8abc69d",
     "themes/kurumi-twilight/assets/botanical-vine-horizontal.png": "f0108c1d214f389ebfff618c5e7b7c6efefe2503242395983be2a655390fb831",
@@ -48,6 +48,6 @@
     "themes/planeptune-sisters/assets/sidebar.png": "5a2da34b69e745ff5699b04622c4da54580d634fd5ce0f981a59e55dc6694982",
     "themes/planeptune-sisters/assets/sidebarBody.png": "3425acaebb7b964dd9fed978f0e059805d573fdae4a6d0da4d28747531558a60",
     "themes/planeptune-sisters/assets/sidebarHeader.png": "5de703f259b1058150cdc73722a3b1ea33f0f91b3114da537fdc6666a42b7032",
-    "adapters/codex-26.1117.json": "62ff75878d4fe5eedc2a85cd615be1c78aada6074efe2ee695f069c97767e56e"
+    "adapters/codex-26.1117.json": "ea529118650de1da6c933b54839f6a4bc2947c7a88e35c4575005dd9cabe8ce5"
   }
 }

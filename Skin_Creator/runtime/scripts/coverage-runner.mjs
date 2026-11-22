@@ -178,6 +178,20 @@ export function selectedSettingsPage(){
  const nodes=[...document.querySelectorAll('[data-settings-panel-slug]')].filter(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[inert],[aria-hidden="true"]')&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true');});
  return nodes.length===1?nodes[0].getAttribute('data-settings-panel-slug'):null;
 }
+// Public navigation slugs, geometry and counts only. Never enumerate account or editor contents.
+export function settingsPanelObservation(){
+ const visible=n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0&&!n.closest('[hidden],[inert],[aria-hidden="true"]')&&getComputedStyle(n).visibility!=='hidden';};
+ const tabs=[...document.querySelectorAll('[data-settings-panel-slug]')].filter(visible);
+ const slugs=[...new Set(tabs.map(n=>n.getAttribute('data-settings-panel-slug')).filter(k=>/^[a-z][a-z0-9-]{0,64}$/.test(k)))];
+ const active=tabs.filter(n=>n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true');
+ if(active.length!==1||active[0].getAttribute('data-settings-panel-slug')==='passwords')return {slugs,layout:null};
+ const selected=active[0],scope=selected.closest('.settings-dialog')??document;
+ const panel=[...scope.querySelectorAll('[data-settings-panel]')].find(visible);
+ if(!panel||panel.matches('[aria-busy="true"]')||panel.querySelector('[aria-busy="true"]'))return {slugs,layout:null};
+ const content=panel.querySelector('[class~="group/settings"]')??panel;
+ const r=content.getBoundingClientRect(),controls=content.querySelectorAll('button,input,textarea,select,summary,[role="switch"]').length;
+ return {slugs,layout:[Math.round(r.width),Math.round(r.height),controls].join(':')};
+}
 export async function captureSettings({statePath,targetId,previous,onProgress=async()=>{}},{connect=managedPage,capture=inventory}={}){
  if(!previous?.measurement?.maximized||!previous.coverage?.states?.length)throw new Error('Complete measured inventory before batch settings capture');
  const client=await connect(statePath,targetId),{page}=client;
@@ -189,7 +203,19 @@ export async function captureSettings({statePath,targetId,previous,onProgress=as
  const {adapter,plan,controls}=configuration;
  let report=refreshNavigationEvidence(structuredClone(previous),controls),original,moved=false;
  const remember=async value=>{report=value;await onProgress(report);};
- const reached=async key=>{for(let i=0;i<8;i++){await settle();if(await page.evaluate('('+navigationReached.toString()+')("settings",'+JSON.stringify(key)+')'))return true;}return false;};
+ const observation=()=>page.evaluate('('+settingsPanelObservation.toString()+')()');
+ const reached=async key=>{
+  let previousLayout=null,stable=0;
+  for(let i=0;i<(controls.inspectSettingsNavigation?20:8);i++){
+   await settle();
+   if(!await page.evaluate('('+navigationReached.toString()+')("settings",'+JSON.stringify(key)+')')){stable=0;previousLayout=null;continue;}
+   if(!controls.inspectSettingsNavigation)return true;
+   const {layout}=await observation();
+   stable=layout&&layout===previousLayout?stable+1:0;previousLayout=layout;
+   if(stable>=2)return true;
+  }
+  return false;
+ };
  try{
   if(await page.evaluate('!!document.activeElement?.matches(\'input,textarea,[contenteditable="true"]\')'))throw new Error('Inventory paused: leave the editable field without changing its content');
   original=await page.evaluate('('+selectedSettingsPage.toString()+')()');
@@ -197,6 +223,11 @@ export async function captureSettings({statePath,targetId,previous,onProgress=as
   if([...controls.protectedStates,...(controls.externalStates??[])].some(id=>navigationRoute(id,controls).key===original))throw new Error('Open an ordinary settings page before batch capture');
   report.coverage.settingsInterrupted=false;
   const ids=report.coverage.states.filter(row=>/^(page|settings)-/.test(row.id)&&navigationRoute(row.id,controls).kind==='settings').map(row=>row.id);
+  if(controls.inspectSettingsNavigation){
+   const {slugs}=await observation(),mapped=new Set(ids.map(id=>navigationRoute(id,controls).key));
+   report.coverage.settingsEntries={available:slugs,unmapped:slugs.filter(slug=>!mapped.has(slug))};
+   await remember(report);
+  }
   for(const id of ids){
    const row=report.coverage.states.find(item=>item.id===id);
    const restriction=restrictedStateReason(row.id,controls);

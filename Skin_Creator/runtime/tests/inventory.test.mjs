@@ -46,3 +46,14 @@ test('offline merge writes both reports exclusively and leaves inputs unchanged'
  const result=await run(['--merge',input,'--out',output]);assert.equal(result.catalog.regions.length,28);assert.equal(JSON.parse(await readFile(output,'utf8')).kind,'codex-ui-inventory');assert.equal(JSON.parse(await readFile(output.replace('.json','.regions.json'),'utf8')).regions.find(x=>x.key==='chat').status,'observed');assert.equal(await readFile(input,'utf8'),source);
  const saved=await readFile(output);await assert.rejects(run(['--merge',input,'--out',output]),/EEXIST/);assert.deepEqual(await readFile(output),saved);await assert.rejects(run(['--merge',input,'--out',input]),/overwrite input/);await assert.rejects(run(['--state','unused','--out',output,'--label','private page text']),/non-personal/);
 });
+
+test('paint inventory keeps unopened and unclassified surfaces distinct across snapshots',()=>{
+ const r=report();
+ r.samples[0].paintLayers=[{key:'stickyToolbar',visible:1,samples:[]},{key:'nativeHoverPreview',visible:0,samples:[]},{key:'unclassifiedPaint',distinct:2,samples:[]}];
+ r.samples.push({regionCoverage:[],paintLayers:[{key:'nativeHoverPreview',visible:1,samples:[]},{key:'settingsNotice',visible:0,samples:[]}]});
+ const summary=makeCatalog(r).paintCoverage;
+ assert.deepEqual(summary.find(x=>x.key==='nativeHoverPreview'),{key:'nativeHoverPreview',sampledSnapshots:2,snapshotsWithPaint:1});
+ assert.deepEqual(summary.find(x=>x.key==='settingsNotice'),{key:'settingsNotice',sampledSnapshots:1,snapshotsWithPaint:0});
+ assert.equal(summary.find(x=>x.key==='unclassifiedPaint').snapshotsWithPaint,1);
+ assert.equal(makeCatalog(report()).paintCoverage,undefined);
+});

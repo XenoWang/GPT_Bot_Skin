@@ -62,12 +62,13 @@
       "[role='listbox']",
       "div[role='presentation'].bg-surface-elevated-secondary.shadow-lg",
       "[data-slot='popover-content'] > .pointer-events-auto.bg-surface-elevated-secondary.shadow-xl-stronger",
-      ".suggestionMenu-EeXWU_"
+      ".suggestionMenu-EeXWU_",
+      "[data-slot='popover-content'] > [data-symbol-picker][role='presentation']"
     ],
     "dialogs": [
-      "[role='dialog']:not([data-slot='popover-content']:has(> .bg-surface-elevated-secondary.shadow-xl-stronger)):not(.unified-search-dialog:has(> [role='presentation'] > input[role='combobox']))",
+      "[role='dialog']:not([data-slot='popover-content']:has(> .bg-surface-elevated-secondary.shadow-xl-stronger)):not(.unified-search-dialog:has(> [role='presentation'] > input[role='combobox'])):not([popover].anchorHost-Owt6x_:has(> .surface-tkBoA3.card-wbKLhh))",
       "[role=\"alertdialog\"]",
-      "dialog:not(.unified-search-dialog:has(> [role='presentation'] > input[role='combobox']))",
+      "dialog:not(.unified-search-dialog:has(> [role='presentation'] > input[role='combobox'])):not([popover].anchorHost-Owt6x_:has(> .surface-tkBoA3.card-wbKLhh))",
       ".unified-search-dialog > [role='presentation']:has(> input[role='combobox'])",
       "[data-settings-panel] form.bg-surface:has(.cm-editor .cm-content[role='textbox']):not(.settings-dialog *)"
     ],
@@ -75,7 +76,8 @@
       "[data-app-shell-main-surface] [class~='group/settings'] .rounded-2xl.border",
       "[data-app-shell-main-surface] [class~='group/settings'] .rounded-2xl.overflow-hidden.ring-1",
       ".settings-dialog[role=\"dialog\"] [class~='group/settings'] .rounded-2xl.border",
-      ".settings-dialog[role=\"dialog\"] [class~='group/settings'] .rounded-2xl.overflow-hidden.ring-1"
+      ".settings-dialog[role=\"dialog\"] [class~='group/settings'] .rounded-2xl.overflow-hidden.ring-1",
+      "[data-settings-panel] [class~='group/settings'] aside.bg-surface.border"
     ],
     "buttons": [
       "button"
@@ -101,7 +103,8 @@
       "[data-settings-panel] .cm-editor:has(.cm-content[role='textbox'])"
     ],
     "tooltips": [
-      "[role='tooltip']"
+      "[role='tooltip']",
+      "[popover].anchorHost-Owt6x_ > .surface-tkBoA3.card-wbKLhh"
     ],
     "scrollbars": [
       "[data-role='messages-scroll']",
@@ -147,8 +150,7 @@
       "[data-thread-scroll-footer]",
       ".flex.h-full.min-h-0.flex-col.bg-surface",
       ".flex.h-full.min-h-0.flex-col[class~='electron:bg-surface']",
-      ".pointer-events-none.absolute[class*='--app-shell-content-fade-height']",
-      "[class~='group/settings'] .bg-surface.sticky"
+      ".pointer-events-none.absolute[class*='--app-shell-content-fade-height']"
     ],
     "sidebar": [
       "[data-slate-sidebar-content]"
@@ -348,7 +350,6 @@
   ],
   "transparentPseudoTargets": {
     "chat": [
-      "[class~='group/settings'] .bg-surface.sticky::after",
       ".footer-A8ZvKV::before",
       ".footer-A8ZvKV::after"
     ]
@@ -388,6 +389,22 @@
           "surface": "#20242e",
           "surfaceOpacity": 0.8,
           "text": "#e4e7ee"
+        },
+        "pageCards": {
+          "surface": "#20242E",
+          "surfaceOpacity": 0.92,
+          "border": "#566074",
+          "borderOpacity": 0.6,
+          "borderWidth": 1,
+          "text": "#E4E7EE"
+        },
+        "tooltips": {
+          "surface": "#20242E",
+          "surfaceOpacity": 0.98,
+          "border": "#566074",
+          "borderOpacity": 0.8,
+          "borderWidth": 1,
+          "text": "#E4E7EE"
         }
       }
     },
@@ -395,6 +412,63 @@
       "hover": {
         "surface": "#B95C81",
         "surfaceOpacity": 0.3
+      },
+      "regions": {
+        "settings": {
+          "surface": "#FFF0F5",
+          "surfaceOpacity": 0.94,
+          "border": "#D98BA4",
+          "borderOpacity": 0.78,
+          "borderWidth": 1,
+          "text": "#2E1720"
+        },
+        "pageCards": {
+          "surface": "#FFF0F5",
+          "surfaceOpacity": 0.92,
+          "border": "#D98BA4",
+          "borderOpacity": 0.6,
+          "borderWidth": 1,
+          "text": "#2E1720"
+        },
+        "tooltips": {
+          "surface": "#FFF0F5",
+          "surfaceOpacity": 0.98,
+          "border": "#D98BA4",
+          "borderOpacity": 0.8,
+          "borderWidth": 1,
+          "text": "#2E1720"
+        }
+      }
+    },
+    "kurumi-twilight": {
+      "regions": {}
+    },
+    "planeptune-sisters": {
+      "regions": {
+        "settings": {
+          "surface": "#21192F",
+          "surfaceOpacity": 0.94,
+          "border": "#80669E",
+          "borderOpacity": 0.78,
+          "borderWidth": 1,
+          "text": "#FFFFFF"
+        },
+        "pageCards": {
+          "surface": "#21192F",
+          "surfaceOpacity": 0.92,
+          "border": "#80669E",
+          "borderOpacity": 0.6,
+          "borderWidth": 1,
+          "text": "#FFFFFF"
+        },
+        "tooltips": {
+          "surface": "#21192F",
+          "surfaceOpacity": 0.98,
+          "border": "#80669E",
+          "borderOpacity": 0.8,
+          "borderWidth": 1,
+          "text": "#FFFFFF"
+        }
       }
     }
   },
@@ -410,26 +484,83 @@
         "primary": "#A71032",
         "onPrimary": "#FFFFFF",
         "danger": "#FFA6A1",
-        "link": "#9FCBFF"
+        "link": "#9FCBFF",
+        "text": "#FFF6F1",
+        "secondary": "#DFC8BF",
+        "outline": "#C29B52",
+        "checkedTrack": "#E0AE61",
+        "checkedThumb": "#24151B"
       },
       "neutral-dark": {
         "primary": "#45546A",
         "onPrimary": "#FFFFFF",
         "danger": "#FFA6A1",
-        "link": "#9FCBFF"
+        "link": "#9FCBFF",
+        "text": "#E4E7EE",
+        "secondary": "#BEC8D6",
+        "outline": "#566074",
+        "checkedTrack": "#A7BAD5",
+        "checkedThumb": "#17202E"
       },
       "spring-sakura": {
         "primary": "#F8CCD7",
         "onPrimary": "#24161C",
         "danger": "#84182E",
-        "link": "#173E80"
+        "link": "#173E80",
+        "text": "#2E1720",
+        "secondary": "#69404E",
+        "outline": "#D98BA4",
+        "checkedTrack": "#9D3D62",
+        "checkedThumb": "#FFFFFF"
       },
       "planeptune-sisters": {
         "primary": "#542B87",
         "onPrimary": "#FFFFFF",
         "danger": "#FFA6A1",
-        "link": "#9FCBFF"
+        "link": "#9FCBFF",
+        "text": "#FFFFFF",
+        "secondary": "#D7C8E3",
+        "outline": "#80669E",
+        "checkedTrack": "#B59BD1",
+        "checkedThumb": "#22182E"
       }
     }
+  },
+  "settingsChrome": {
+    "panel": "[data-settings-panel]",
+    "standalone": "[data-settings-panel]:not(.settings-dialog *)",
+    "sticky": "[data-settings-panel] .sticky.bg-surface",
+    "rowCard": "[data-settings-panel] :is(.rounded-2xl.border,.rounded-2xl.overflow-hidden.ring-1)",
+    "notice": "[data-settings-panel] [class~='group/settings'] aside.bg-surface.border",
+    "preview": "[popover].anchorHost-Owt6x_ > .surface-tkBoA3.card-wbKLhh",
+    "switch": "[data-settings-panel] button[role='switch'][aria-checked]",
+    "framedSectionHeader": "[data-settings-panel] section:has(> :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"]),> * > :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"])) > [class~=\"[[data-settings-panel]_&]:border-b\"]:first-child,[data-settings-panel] section:has(> :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"]),> * > :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"])) > :first-child > [class~=\"[[data-settings-panel]_&]:border-b\"]"
+  },
+  "surfaceReview": {
+    "settingsSection": "[data-settings-panel] :is(.rounded-2xl.border,.rounded-2xl.overflow-hidden.ring-1)",
+    "settingsNotice": "[data-settings-panel] [class~='group/settings'] aside.bg-surface.border",
+    "stickyToolbar": "[data-settings-panel] .sticky.bg-surface",
+    "unifiedSearchSurface": ".unified-search-dialog > [role='presentation']:has(> input[role='combobox'])",
+    "nativeHoverPreview": "[popover].anchorHost-Owt6x_ > .surface-tkBoA3.card-wbKLhh",
+    "nativeHoverTrigger": "[data-sidebar-navigation-root] [data-native-hover-card-trigger]:hover",
+    "codeEditorViewport": "[data-settings-panel] .cm-editor:has(.cm-content[role='textbox'])",
+    "projectRowHover": "[data-sidebar-navigation-root] [data-app-action-sidebar-thread-row]:hover",
+    "projectPickerBackplate": "[role='presentation'].shadow-lg > [class~='rounded-[inherit]'] > .bg-surface-elevated-secondary",
+    "permissionsHeaderCell": "[data-settings-panel] .viewport-QJjd3w > table.table-uXkbpE[data-page-size] thead > tr:first-child > th:first-child",
+    "permissionsDefaultCell": "[data-settings-panel] .viewport-QJjd3w > table.table-uXkbpE[data-page-size] thead > tr:last-child > td:first-child",
+    "framedSectionHeader": "[data-settings-panel] section:has(> :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"]),> * > :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"])) > [class~=\"[[data-settings-panel]_&]:border-b\"]:first-child,[data-settings-panel] section:has(> :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"]),> * > :is(.viewport-QJjd3w,.rounded-2xl[data-codex-appearance~=\"settings\"])) > :first-child > [class~=\"[[data-settings-panel]_&]:border-b\"]",
+    "pickerPositioner": "[data-slot='popover-content']:has(> [data-symbol-picker][role='presentation'])",
+    "pickerPaintedCard": "[data-slot='popover-content'] > [data-symbol-picker][role='presentation']",
+    "pickerNeutralGlyph": "[data-symbol-picker][role='presentation'] [data-symbol-glyph] .text-codex-icon",
+    "imageComposerRail": "[data-image-options-composer] [data-composer-trailing-controls]",
+    "imageComposerButton": "[data-image-options-composer] [data-composer-trailing-controls] :is(button.text-tertiary[data-composer-navigation-target='reasoning'],button.text-tertiary[data-dictation-button])"
+  },
+  "pickerSurface": {
+    "directPanel": ":scope > [data-symbol-picker][role='presentation'],:scope > div[role='presentation'].bg-surface-elevated-secondary.shadow-lg:only-child",
+    "root": "[data-symbol-picker][role='presentation']"
+  },
+  "imageComposer": {
+    "rail": "[data-image-options-composer] [data-composer-trailing-controls]",
+    "buttons": ":is(button.text-tertiary[data-composer-navigation-target='reasoning'],button.text-tertiary[data-dictation-button])"
   }
 }

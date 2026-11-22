@@ -37,11 +37,45 @@ export function captureRegions(adapter){
   for(const [n]of entries){if(!mappedNodes.has(n))mappedNodes.set(n,[]);mappedNodes.get(n).push(key);}
   return {key,matched:entries.length,visible:shown.length,status:shown.length?'observed':entries.length?'loaded-hidden':'not-observed',selectorErrors:[...new Set(selectorErrors)],samples:[...shown,...entries.filter(([n])=>!visible(n))].slice(0,3).map(([n,i])=>describe(n,i))};
  });
+ const paintLayers=[];
+ if(adapter.surfaceReview){
+  const inView=n=>{
+   if(!visible(n)||n.closest('[inert],[aria-hidden="true"],[data-codex-appearance-owned]'))return false;
+   const r=n.getBoundingClientRect();return r.right>0&&r.left<innerWidth&&r.bottom>0&&r.top<innerHeight;
+  };
+  const protectedShell=[...document.querySelectorAll('[data-settings-panel-slug="passwords"]')].some(n=>
+   visible(n)&&(n.getAttribute('aria-current')==='page'||n.getAttribute('aria-selected')==='true'));
+  if(!protectedShell){
+   const paint=n=>{
+    const s=getComputedStyle(n),r=n.getBoundingClientRect();
+    const pseudo=key=>{const p=getComputedStyle(n,key);return {present:p.content!=='none',background:p.backgroundColor,gradient:String(p.backgroundImage).includes('gradient(')};};
+    return {rect:[r.x,r.y,r.width,r.height].map(Math.round),region:n.getAttribute('data-codex-appearance'),
+     background:s.backgroundColor,foreground:s.color,border:[s.borderTopWidth,s.borderRightWidth,s.borderBottomWidth,s.borderLeftWidth],
+     borderColor:s.borderTopColor,radius:s.borderRadius,before:pseudo('::before'),after:pseudo('::after')};
+   };
+   for(const [key,selector] of Object.entries(adapter.surfaceReview)){
+    const matches=[...document.querySelectorAll(selector)].filter(inView);
+    paintLayers.push({key,visible:matches.length,samples:matches.slice(0,2).map(paint)});
+   }
+   // Surface discovery is independent of region matches. A gray child may cover a correctly marked parent.
+   const unknown=new Map();
+   const candidates=document.querySelectorAll('[data-settings-panel] :is(aside,section,.sticky,thead,tbody,th,td,[role="cell"],[role="columnheader"],[class*="bg-surface"]),[data-app-shell-main-surface] aside,[popover]:popover-open > *,[role="menu"] [class*="bg-surface"],[role="dialog"] [class*="bg-surface"]');
+   for(const node of candidates){
+    if(node.hasAttribute('data-codex-appearance')||!inView(node))continue;
+    const rect=node.getBoundingClientRect();if(rect.width<48||rect.height<18)continue;
+    const layer=paint(node);
+    if(layer.background==='rgba(0, 0, 0, 0)'&&!layer.before.gradient&&!layer.after.gradient)continue;
+    const key=JSON.stringify([node.localName,layer.background,layer.foreground,layer.radius,layer.before.gradient,layer.after.gradient]);
+    if(!unknown.has(key))unknown.set(key,layer);
+   }
+   paintLayers.push({key:'unclassifiedPaint',distinct:unknown.size,samples:[...unknown.values()].slice(0,12),truncated:unknown.size>12});
+  }
+ }
  for(const [index,node]of candidateNodes.entries())candidates[index].mappedRegions=mappedNodes.get(node)??[];
  const rail=[...document.querySelectorAll(adapter.chatLayoutState?.rail??'[data-app-navigation-rail]')].find(visible),main=[...document.querySelectorAll('[data-app-shell-main-surface]')].find(visible),r=rail?.getBoundingClientRect(),m=main?.getBoundingClientRect();
  const ratio=typeof devicePixelRatio==='number'?devicePixelRatio:1;
  const header=adapter.sidebarHeaderSelector?[...document.querySelectorAll(adapter.sidebarHeaderSelector)].find(visible)?.getBoundingClientRect():null,sidebar=[...document.querySelectorAll('[data-sidebar-navigation-root]')].find(visible)?.getBoundingClientRect();
- return {viewport:[innerWidth,innerHeight],pixelRatio:ratio,canvas:{window:[innerWidth,innerHeight],main:[Math.max(1,innerWidth-(r?.width??0)),innerHeight-(m?.top??0)],mainOrigin:[r&&r.x<innerWidth/2?r.right:0,m?.top??0],rail:r?[r.x,r.y,r.width,r.height]:null,sidebarHeaderHeight:header&&sidebar?header.bottom-sidebar.top:null},regionCoverage:regions,candidates,shadowRoots:roots.length-1,truncated,limitations:['Only loaded DOM and open shadow roots were inspected.','Unopened pages, closed shadow roots and external frames are not covered.','A selector match does not prove visual or interactive correctness.']};
+ return {viewport:[innerWidth,innerHeight],pixelRatio:ratio,canvas:{window:[innerWidth,innerHeight],main:[Math.max(1,innerWidth-(r?.width??0)),innerHeight-(m?.top??0)],mainOrigin:[r&&r.x<innerWidth/2?r.right:0,m?.top??0],rail:r?[r.x,r.y,r.width,r.height]:null,sidebarHeaderHeight:header&&sidebar?header.bottom-sidebar.top:null},regionCoverage:regions,...(paintLayers.length?{paintLayers}:{}),candidates,shadowRoots:roots.length-1,truncated,limitations:['Only loaded DOM and open shadow roots were inspected.','Unopened pages, closed shadow roots and external frames are not covered.','A selector match does not prove visual or interactive correctness.']};
 }
 
 export function makeCatalog(report,labels={}){

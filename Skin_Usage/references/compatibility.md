@@ -1,10 +1,14 @@
 # Compatibility and validation
 
+旧版皮肤仅支持低于 `26.1117.3838.0` 的客户端。常规旧版范围为 `26.1111.2228.0 ≤ 客户端版本 < 26.1117.3838.0`，另有单独适配的 `26.1103.4239.0`。客户端 `26.1117.3838.0` 本身使用新版皮肤。
+
+Legacy skins support clients strictly before `26.1117.3838.0`. The legacy range is `26.1111.2228.0 ≤ client version < 26.1117.3838.0`, with a separate exact profile for `26.1103.4239.0`. Client `26.1117.3838.0` itself uses the new layout. A later unregistered build can still load a fallback profile. Loading it does not extend the legacy skin’s supported range.
+
 Managed launch reads both packages’ version policy from their own `runtime/adapters/versions.json`. An exact profile takes priority. Otherwise a four-part Windows version at or above `26.1111.2228.0` uses that minimum version’s profile. Earlier builds require an exact entry, including the supported `26.1103.4239.0`. To fix one release, add an exact profile and rebuild the package. Later releases continue using the configured baseline. The status records the actual client, the source profile and the match type.
 
 Offline tests cover configuration, geometry, per-Skin preferences, translations, cleanup, launch arguments and source/package integrity. They do not prove clean-machine installation, live direct-network startup, native RTL layout, every viewport size or popup state.
 
-Native inspection should cover chat/new-chat/Dot, sidebar hover and collapse, project dialogs, Settings, code blocks, menus, question cards and profile activity. The latest search-surround transparency change still needs page-by-page visual confirmation. Its shared layout and cleanup behavior has offline regression coverage. System dialogs, external embedded pages and protected data remain outside the general recoloring scope.
+Native inspection should cover chat/new-chat/Dot, sidebar hover and collapse, project dialogs, Settings, code blocks, menus, question cards and profile activity. On 26.1117.3838.0 all four bundled skins were checked on the archived chats, passwords (search header only), Codex Cloud, keyboard shortcuts, code review and worktrees toolbars. The outer paint and scroll fade were transparent while the inner controls remained visible. System dialogs, external embedded pages and protected data remain outside the general recoloring scope.
 
 Raw results, screenshots and machine-specific setup records are private maintenance data. Release notes should state supported environments and limits without personal paths or session identifiers.
 

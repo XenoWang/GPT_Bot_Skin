@@ -4,6 +4,8 @@
 
 ## 中文
 
+旧版皮肤仅支持低于 `26.1117.3838.0` 的客户端。常规旧版范围为 `26.1111.2228.0 ≤ 客户端版本 < 26.1117.3838.0`，另有单独适配的 `26.1103.4239.0`。客户端 `26.1117.3838.0` 本身使用新版皮肤。 分版本的适配问题见[创作避坑台账](AI_Skills/Pitfall/ThingsShouldBeAvoided.md)。
+
 这是可单独发布的创作包。区域盘点、配置校验、临时预览、图片处理及启动服务均在本目录内，无需下载同级的其他包。入口：[SKILL.md](SKILL.md)。
 
 创作流程：盘点及编号图 → 一体式/分开式与语言 → 给图或确认提示词后生成 → 主体保护裁剪 → 背景预览确认 → 配色多选及控件适配 → 整体确认后导出。已有选择可续用，常用窗口化/最大化定位预计算，固定尺寸复用，新尺寸补算一次并缓存。
@@ -47,6 +49,8 @@ python Build-Zip.py --output ../Skin_Creator.zip
 只打包 `release-manifest.json` 中的已审阅文件。工作目录、个人配置、缓存、日志和开发测试不进入 ZIP；公开经验指南会保留。不要直接无筛选压缩整个已使用目录。新增语言或维护代码后，需审阅并更新发布清单。创建主题的数据包使用 `export`，不使用此技能打包命令。
 
 ## English
+
+Legacy skins support clients strictly before `26.1117.3838.0`. The legacy range is `26.1111.2228.0 ≤ client version < 26.1117.3838.0`, with a separate exact profile for `26.1103.4239.0`. Client `26.1117.3838.0` itself uses the new layout. See the [version-specific authoring notes](AI_Skills/Pitfall/ThingsShouldBeAvoided.md).
 
 A standalone authoring package: inventory, validation, previews, image processing and managed launch services are bundled locally. No sibling package is required. Start with [SKILL.md](SKILL.md).
 

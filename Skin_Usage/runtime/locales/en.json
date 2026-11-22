@@ -5,6 +5,7 @@
     "File"
   ],
   "strings": {
+    "legacyLayoutSkin": "{name} · Legacy layout (only supported before 26.1117.3838.0)",
     "newLayoutSkin": "{name} · New layout ({version})",
     "title": "Skin settings",
     "launcher": "Skin",

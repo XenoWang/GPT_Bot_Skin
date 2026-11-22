@@ -7,6 +7,7 @@
     "档案"
   ],
   "strings": {
+    "legacyLayoutSkin": "{name} · 旧版皮肤（仅支持低于 26.1117.3838.0 的客户端）",
     "newLayoutSkin": "{name} · 新版使用（{version}）",
     "title": "外观主题",
     "launcher": "主题",

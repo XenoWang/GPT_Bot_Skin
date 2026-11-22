@@ -1,5 +1,6 @@
 {
   "version": "26.1111.2228.0",
+  "bundledSkinLabel": "legacyLayoutSkin",
   "verification": "Native shell and available request-card structure observed on official 26.1111.2228.0; each authoring session still requires its own observed surface coverage and visual review.",
   "gate": "[data-app-shell-frame],main.main-surface",
   "regions": {

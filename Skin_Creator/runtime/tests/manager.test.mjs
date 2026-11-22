@@ -365,7 +365,7 @@ test('search and filter wrappers and reasoning slider rows remain transparent ac
  for(const version of ['26.1103.4239.0','26.1111.2228.0','26.1117.3838.0']){
   app.adapter=await readAdapter(version);
   app.refresh();
-  const rules=app.style.textContent.split('}').map(rule=>rule.split('{'));
+  const rules=app.style.textContent.split('}').map(rule=>rule.trim().split('{'));
   const clear=rules.filter(([,style])=>style?.includes('background-color:transparent!important')&&style.includes('background-image:none!important')).map(([selector])=>selector);
   const toolbar=clear.find(s=>s.includes('.sticky.bg-surface:has('));
   assert.ok(toolbar?.includes('input')&&toolbar.includes('button'),version+' search and filter toolbars');

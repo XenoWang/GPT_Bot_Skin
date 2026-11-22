@@ -101,11 +101,11 @@ Ask GPT to read this folder's `SKILL.md`, check official Codex Desktop and Node 
 
 ## 旧版本与区域盘点 / Older clients and UI inventory
 
-**不提供向下版本兼容。** 若当前客户端比适配器目标版本更旧，请让Codex先运行本目录 `Inspect-UI.ps1`，逐页采集实际可用模块和状态，向你展示可配置区域及缺口，然后按[盘点流程](references/ui-inventory.md)调整适配器并验证。不要把脚本视为一键兼容工具。
+旧版皮肤仅支持低于 `26.1117.3838.0` 的客户端。常规旧版范围为 `26.1111.2228.0 ≤ 客户端版本 < 26.1117.3838.0`，另有单独适配的 `26.1103.4239.0`。客户端 `26.1117.3838.0` 本身使用新版皮肤。 对于更早且没有单独适配的客户端，请让Codex先运行本目录 `Inspect-UI.ps1`，逐页采集实际可用模块和状态，向你展示可配置区域及缺口，然后按[盘点流程](references/ui-inventory.md)调整适配器并验证。不要把脚本视为一键兼容工具。
 
 在本目录执行 `powershell.exe -NoProfile -File .\Inspect-UI.ps1 -Label current`。默认读取受管启动配置；必要时通过 `-StatePath` 指定当前会话文件。报告与区域清单输出在被忽略的work目录。未打开的页面、弹窗和关闭的Shadow DOM不会被计为已检查。
 
-**Backward compatibility is not supported.** For an older client, ask Codex to run this folder's `Inspect-UI.ps1`, visit available pages/states, present the region catalog and coverage gaps, then adapt and verify. This is not a one-click compatibility patch.
+Legacy skins support clients strictly before `26.1117.3838.0`. The legacy range is `26.1111.2228.0 ≤ client version < 26.1117.3838.0`, with a separate exact profile for `26.1103.4239.0`. Client `26.1117.3838.0` itself uses the new layout. For an earlier client without an exact profile, ask Codex to run this folder's `Inspect-UI.ps1`, visit available pages/states, present the region catalog and coverage gaps, then adapt and verify. This is not a one-click compatibility patch.
 
 From this folder run `powershell.exe -NoProfile -File .\Inspect-UI.ps1 -Label current`. It uses managed launch configuration or an explicit `-StatePath`. Reports and region catalogs are local ignored work files. Unopened pages, dialogs and closed shadow roots remain uninspected. The scanner reads structure/styles only, never messages, passwords or input values, and does not modify the client.
 

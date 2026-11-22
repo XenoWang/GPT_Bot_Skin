@@ -1,5 +1,6 @@
 {
   "version": "26.1103.4239.0",
+  "bundledSkinLabel": "legacyLayoutSkin",
   "verification": "Native surfaces inspected on official 26.1103.4239.0; see validation records for coverage.",
   "gate": "[data-app-shell-frame],main.main-surface",
   "regions": {

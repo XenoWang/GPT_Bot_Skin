@@ -165,22 +165,28 @@ test('metadata-only refresh keeps observations and the current profile maps the 
 
 test('both packaged registries use the inclusive floor and numeric component order',async()=>{
  const usage=await import('../../../Skin_Usage/runtime/scripts/adapter-registry.mjs');
- const newer=['26.1111.2228.1','26.1111.9265.0','26.1111.9999.0','26.1111.10000.0','26.1112.0.0','27.0.0.0','99.1.2.3'];
+ const newer=['26.1111.2228.1','26.1111.9265.0','26.1111.9999.0','26.1111.10000.0','26.1112.0.0','26.1117.3837.65535'];
  for(const read of [readAdapter,usage.readAdapter]){
   for(const actual of newer){
    const adapter=await read(actual);
    assert.equal(adapter.version,actual);
    assert.equal(adapter.profileVersion,CURRENT);
   }
+  for(const actual of ['26.1117.3838.1','26.1117.4957.0','27.0.0.0','99.1.2.3']){
+   const adapter=await read(actual);
+   assert.equal(adapter.version,actual);
+   assert.equal(adapter.profileVersion,'26.1117.3838.0');
+   assert.equal(adapter.bundledSkinLabel,'newLayoutSkin');
+  }
   for(const denied of ['26.1111.999.9','26.1111.2227.65535','26.111.65535.0','26.1103.4239.1','27.0.0.x']){
    await assert.rejects(read(denied),/Unsupported client version/);
   }
  }
- for(const actual of ['26.1111.9265.0','27.0.0.0']){
+ for(const actual of ['26.1111.9265.0','26.1117.4957.0','27.0.0.0']){
   const {adapter,plan,controls}=await authoringConfiguration(actual);
   for(const resolved of [adapter,plan,controls]){
    assert.equal(resolved.version,actual);
-   assert.equal(resolved.profileVersion,CURRENT);
+   assert.equal(resolved.profileVersion,actual==='26.1111.9265.0'?CURRENT:'26.1117.3838.0');
   }
   assert.ok(controls.protectedStates.includes('settings-passwords'));
   assert.ok(plan.manualStates.some(state=>state.id==='questions'));

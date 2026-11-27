@@ -1,11 +1,14 @@
 {
-  "revision": "8b56dcb55cf9ede8c18c17d0d5f9caeee346c553d9970a5a0d6e0a6e9f0eb14e",
-  "bytes": 13621861,
-  "payloadFormat": 3,
+  "revision": "2390b4ea718cbe72f768d9d8fba0a5faa189b3f3267d328d46cd732d609c83fd",
+  "bytes": 13622021,
+  "payloadFormat": 4,
   "clientVersions": [
     "26.1103.4239.0",
     "26.1111.2228.0",
     "26.1117.3838.0"
   ],
-  "minimumVersion": "26.1111.2228.0"
+  "minimumVersion": "26.1111.2228.0",
+  "additionalRangeStarts": [
+    "26.1117.3838.0"
+  ]
 }

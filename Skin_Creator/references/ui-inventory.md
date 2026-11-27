@@ -39,6 +39,6 @@ Reports are local data in ignored `work/` directories. They exclude content text
 
 Creator and Usage share an inclusive minimum of `26.1111.2228.0`. Exact profiles override the baseline for one release. Rendering, the inventory plan and authoring controls use the same selection. Changing the actual client invalidates previous inventory bindings, even when both versions select the same profile. Observe and confirm surfaces on the current client before export.
 
-On 26.1117.3838.0, bundled skins use the new title bar and skip inactive workspace panes. The native picker labels the new layout with its client version. Existing skin IDs, artwork and user preferences are shared with the older layout. Other client versions continue to use their registered profile or the existing minimum-version fallback.
+On 26.1117.3838.0, bundled skins use the new title bar and skip inactive workspace panes. The native picker labels the new layout with its client version. Existing skin IDs, artwork and user preferences are shared with the older layout. Exact profiles take priority. Otherwise the newest configured layout boundary at or below the client version supplies the profile.
 
 For the measured 26.1117.3838.0 layout, follow the [version-specific native controls guide](layout-26.1117.3838.md) for row hover, search borders, editor contrast and slow interaction coverage.

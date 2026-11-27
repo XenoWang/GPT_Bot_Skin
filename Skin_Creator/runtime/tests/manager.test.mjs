@@ -128,15 +128,15 @@ test('new layout labels all four shipped skins without changing selection IDs or
  app.bundledSkinIds=new Set(ids);
  app.packs.set('personal',{manifest:{id:'personal',name:'Personal'}});
  app.active='spring-sakura';
- for(const version of ['26.1103.4239.0','26.1111.2228.0','26.1117.3838.0','26.1117.3838.1']){
+ for(const version of ['26.1103.4239.0','26.1111.2228.0','26.1117.3837.65535','26.1117.3838.0','26.1117.3838.1','26.1117.4957.0']){
   app.adapter=await readAdapter(version);
   app.renderList();
   const options=app.select.children;
   assert.deepEqual(options.map(o=>o.value),['original',...ids,'personal']);
   assert.equal(app.select.value,'spring-sakura');
   for(const option of options){
-   if(version==='26.1117.3838.0'&&ids.includes(option.value))
-    assert.match(option.textContent,/新版使用（26\.1117\.3838\.0）/);
+   if(['26.1117.3838.0','26.1117.3838.1','26.1117.4957.0'].includes(version)&&ids.includes(option.value))
+    assert.ok(option.textContent.includes('新版使用（'+version+'）'));
    else assert.doesNotMatch(option.textContent,/新版使用/);
   }
  }

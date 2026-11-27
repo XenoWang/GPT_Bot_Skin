@@ -2,9 +2,9 @@
 
 旧版皮肤仅支持低于 `26.1117.3838.0` 的客户端。常规旧版范围为 `26.1111.2228.0 ≤ 客户端版本 < 26.1117.3838.0`，另有单独适配的 `26.1103.4239.0`。客户端 `26.1117.3838.0` 本身使用新版皮肤。
 
-Legacy skins support clients strictly before `26.1117.3838.0`. The legacy range is `26.1111.2228.0 ≤ client version < 26.1117.3838.0`, with a separate exact profile for `26.1103.4239.0`. Client `26.1117.3838.0` itself uses the new layout. A later unregistered build can still load a fallback profile. Loading it does not extend the legacy skin’s supported range.
+Legacy skins support clients strictly before `26.1117.3838.0`. The legacy range is `26.1111.2228.0 ≤ client version < 26.1117.3838.0`, with a separate exact profile for `26.1103.4239.0`. Client `26.1117.3838.0` itself uses the new layout. Later unregistered builds use the new-layout profile until another layout boundary is configured.
 
-Managed launch reads both packages’ version policy from their own `runtime/adapters/versions.json`. An exact profile takes priority. Otherwise a four-part Windows version at or above `26.1111.2228.0` uses that minimum version’s profile. Earlier builds require an exact entry, including the supported `26.1103.4239.0`. To fix one release, add an exact profile and rebuild the package. Later releases continue using the configured baseline. The status records the actual client, the source profile and the match type.
+Managed launch reads both packages’ version policy from their own `runtime/adapters/versions.json`. An exact profile takes priority. For unregistered builds, `26.1111.2228.0` starts the legacy range and `26.1117.3838.0` starts the new-layout range. Earlier builds require an exact entry, including the supported `26.1103.4239.0`. To fix one release, add an exact profile and rebuild the package. A single-release exception does not advance the layout boundary. The status records the actual client, the source profile and the match type.
 
 Offline tests cover configuration, geometry, per-Skin preferences, translations, cleanup, launch arguments and source/package integrity. They do not prove clean-machine installation, live direct-network startup, native RTL layout, every viewport size or popup state.
 
@@ -16,4 +16,4 @@ Planeptune Twin Stars was inspected on the exact profile `26.1111.2228.0` at nor
 
 On `26.1111.9265.0`, native inspection using the baseline selectors found the title bar, Skin button mount, sidebar, composer, messages, code blocks, tool cards and transcript footer. Menus, settings and dialogs were outside this observation. Creator binds fresh inventory and visual acceptance to the actual client and window.
 
-On 26.1117.3838.0, bundled skins use the new title bar and skip inactive workspace panes. The native picker labels the new layout with its client version. Existing skin IDs, artwork and user preferences are shared with the older layout. Other client versions continue to use their registered profile or the existing minimum-version fallback.
+On 26.1117.3838.0, bundled skins use the new title bar and skip inactive workspace panes. The native picker labels the new layout with its client version. Existing skin IDs, artwork and user preferences are shared with the older layout. Exact profiles take priority. Otherwise the newest configured layout boundary at or below the client version supplies the profile.

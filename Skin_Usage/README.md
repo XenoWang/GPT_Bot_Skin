@@ -89,7 +89,7 @@ The Sakura folder contains only its manifest and referenced scene image. Its 192
 
 Planeptune Twin Stars is a separate-image Skin with a split sidebar and independent controller-key decorations. Default black overlay is 60%; user-bubble opacity is 85%. The Skin panel exposes independent opacity controls. The 1868×988 main image was proportionally enlarged by about 11.8% and cropped with protected character bounds. Use the bundled updated runtime for its v2 decoration fields.
 
-从 `26.1111.2228.0`（含）起，新版本默认复用最低版本配置，精确版本配置优先。实际界面验证范围见 [compatibility.md](references/compatibility.md)。Windows 原生对话框、嵌入网页和受保护内容不属于这个渲染器的主题范围。附赠图是为本方案生成/编辑的角色插画，不是官方授权素材声明。全景实际尺寸 **1774×887**；较大视口可能需要放大，应按实际显示尺寸检查清晰度。没有使用模糊填边，不宣称原生 4K。
+从 `26.1111.2228.0`（含）起，按布局分段匹配；从 `26.1117.3838.0`（含）起复用新版布局，单独登记的精确版本优先。实际界面验证范围见 [compatibility.md](references/compatibility.md)。Windows 原生对话框、嵌入网页和受保护内容不属于这个渲染器的主题范围。附赠图是为本方案生成/编辑的角色插画，不是官方授权素材声明。全景实际尺寸 **1774×887**；较大视口可能需要放大，应按实际显示尺寸检查清晰度。没有使用模糊填边，不宣称原生 4K。
 
 实机覆盖、未验证项与自动回归状态见 [compatibility.md](references/compatibility.md)。把 Skill 放在本目录可直接让 GPT 读取；若需要自动发现，再按所用客户端的 Skill 安装入口安装。文件夹存在不代表客户端已自动加载它。
 

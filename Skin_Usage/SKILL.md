@@ -18,6 +18,6 @@ Load only the relevant reference:
 - Version limits: [compatibility](references/compatibility.md). Language edits: [localization](references/localization.md).
 - Packaging: `python Build-Zip.py --output <new-zip-outside-package>` uses the reviewed allowlist.
 
-Preserve the official Store client, login/profile, existing launch route and network choice. Never patch app files, force-close a client, weaken owner checks or silently migrate Python/PowerShell state. Prefer exact profiles. Versions at or above the configured minimum use its profile. Record client and profile versions separately when investigating UI changes. Inspect relevant visible UI only; exclude external pages and protected contents. Loaded status or matched selectors do not prove visual correctness.
+Preserve the official Store client, login/profile, existing launch route and network choice. Never patch app files, force-close a client, weaken owner checks or silently migrate Python/PowerShell state. Prefer exact profiles. Otherwise use the most recent configured layout boundary at or below the actual client version. Record client and profile versions separately when investigating UI changes. Inspect relevant visible UI only; exclude external pages and protected contents. Loaded status or matched selectors do not prove visual correctness.
 
 Report actual results and limits. Private recovery records never grant approval, erase failures or enter releases. README is the full manual; routine switching need not load it.
